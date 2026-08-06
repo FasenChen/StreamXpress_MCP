@@ -246,6 +246,6 @@ def launch() -> dict:
     Reads streamxpress_path and rc_port from the project config.json
     (see config.example.json), starts StreamXpress with `-rc <port>`, and
     probes the port until the RC service is ready. Returns pid, port and
-    readiness; use the returned port with streamxpress_connect.
+    readiness; use the returned port with connect.
     """
     return launch_streamxpress(load_config())

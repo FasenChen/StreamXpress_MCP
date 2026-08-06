@@ -47,10 +47,17 @@ def load_config() -> StreamXpressConfig:
         raise ValueError(f"配置文件解析失败: {cfg_file} — {exc}") from exc
     if not isinstance(data, dict):
         raise ValueError(f"配置文件格式错误（应为 JSON 对象）: {cfg_file}")
+    rc_port = data.get("rc_port", 5000)
+    try:
+        rc_port = int(rc_port)
+    except (TypeError, ValueError):
+        rc_port = 5000
+    streamxpress_path = data.get("streamxpress_path")
+    sprc_api_path = data.get("sprc_api_path")
     return StreamXpressConfig(
-        streamxpress_path=str(data.get("streamxpress_path", "")),
-        sprc_api_path=str(data.get("sprc_api_path", "")),
-        rc_port=int(data.get("rc_port", 5000)),
+        streamxpress_path=streamxpress_path if isinstance(streamxpress_path, str) else "",
+        sprc_api_path=sprc_api_path if isinstance(sprc_api_path, str) else "",
+        rc_port=rc_port,
     )
 
 

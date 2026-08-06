@@ -31,6 +31,8 @@ MCP 支持通过项目根目录的 `config.json` 集中配置，在使用前填�
 
 查找顺序：环境变量 `STREAMXPRESS_MCP_CONFIG` 指定的文件 → 项目根 `config.json` → 默认值。配置文件缺失或字段留空时不报错，使用默认值。
 
+> 若以非 editable 方式安装（`pip install .`），项目根定位不适用，请用环境变量 `STREAMXPRESS_MCP_CONFIG` 指定配置文件路径。
+
 ## 快速开始
 
 MCP 客户端（WorkBuddy、Claude Desktop 等）会用配置里的 `command`（默认 `python`）启动本服务，而客户端解析到的 `python` 通常**不是**项目 venv 里的 python。因此**最简单的方式是直接把包装到当前 Python 环境，不使用 venv**：
@@ -74,6 +76,8 @@ python -m streamxpress_mcp
 > 工具注册名如左（不带前缀）。MCP 客户端（WorkBuddy、Claude Desktop 等）通常会在工具名前加上 MCP server 名前缀，例如 `connect` 在客户端中显示为 `streamxpress_connect`。
 >
 > 这是破坏性变更：工具名已从 `streamxpress_connect` 等改为无前缀的 `connect` 等。升级后请在各 MCP 客户端（WorkBuddy、Claude Desktop 等）重新连接/重启会话以刷新工具列表，旧名不再注册。
+>
+> 新增的 `launch` 工具同样无前缀，客户端中显示为 `streamxpress_launch`。
 
 | 工具 | 说明 |
 |---|---|

@@ -23,6 +23,7 @@ class SPRC_client:
     # Members
     _zeep_client: Optional[zeep.Client]
     _wsdl_file : str
+    _wsdl_template: Optional[str]
     
     def __init__(self, wsdl_template: str | None = None):
         """ Constructor """

@@ -34,6 +34,21 @@ def test_load_config_from_project_root(monkeypatch, tmp_path):
     assert cfg.sprc_api_path == "D:/SpRcApi"
 
 
+def test_load_config_type_mismatch_uses_defaults(monkeypatch, tmp_path):
+    cfg_file = tmp_path / "config.json"
+    cfg_file.write_text(
+        json.dumps(
+            {"streamxpress_path": None, "sprc_api_path": 123, "rc_port": "abc"}
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv(config_mod.ENV_VAR, str(cfg_file))
+    cfg = config_mod.load_config()
+    assert cfg.streamxpress_path == ""
+    assert cfg.sprc_api_path == ""
+    assert cfg.rc_port == 5000
+
+
 def test_load_config_invalid_json_raises(monkeypatch, tmp_path):
     cfg_file = tmp_path / "config.json"
     cfg_file.write_text("{not json", encoding="utf-8")
