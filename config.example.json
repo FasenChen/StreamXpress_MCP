@@ -1,0 +1,6 @@
+{
+  "_说明": "复制本文件为 config.json 后填写。streamxpress_path 必填；sprc_api_path 留空则用包内默认 wsdl；rc_port 默认 5000",
+  "streamxpress_path": "C:\\Program Files\\DekTec\\StreamXpress\\StreamXpress64.exe",
+  "sprc_api_path": "",
+  "rc_port": 5000
+}

@@ -23,3 +23,6 @@ StreamXpress_Official_Data/
 
 # Git worktrees
 .worktrees/
+
+# Local per-user configuration
+config.json
