@@ -146,6 +146,8 @@
      <element name="CmEnable" type="xsd:boolean" minOccurs="1" maxOccurs="1"/>
      <element name="AwgnEnable" type="xsd:boolean" minOccurs="1" maxOccurs="1"/>
      <element name="PathsEnable" type="xsd:boolean" minOccurs="1" maxOccurs="1"/>
+     <element name="UseManualSeed" type="xsd:boolean" minOccurs="1" maxOccurs="1"/>
+     <element name="ManualSeed" type="xsd:int" minOccurs="1" maxOccurs="1"/>
      <element name="Snr" type="xsd:double" minOccurs="1" maxOccurs="1"/>
      <element name="Paths" type="SpRc:CmPathArray" minOccurs="1" maxOccurs="1" nillable="false"/>
    </sequence>
