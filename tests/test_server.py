@@ -155,3 +155,100 @@ class TestServerConnectTool:
         result = streamxpress_disconnect()
         assert result["status"] == "disconnected"
         mock_client.disconnect.assert_called_once()
+
+
+class TestServerPortTools:
+    @patch("streamxpress_mcp.server.get_client")
+    def test_scan_ports(self, mock_get_client):
+        from streamxpress_mcp.sprc_import import SpRcPortDesc
+        mock_client = MagicMock()
+        mock_client.scan_ports.return_value = [
+            SpRcPortDesc(Serial=217400001, TypeNumber=2174, Ip=bytes(4), Mac=bytes(6),
+                         FirmwareVersion=100, FirmwareVariant=0, Port=1,
+                         OutputType=0x00001, Capabilities=0, InUse=0)]
+        mock_get_client.return_value = mock_client
+        from streamxpress_mcp.server import streamxpress_scan_ports
+        result = streamxpress_scan_ports()
+        assert len(result) == 1
+        assert result[0]["serial"] == 217400001
+        assert "ASI" in result[0]["output_types"]
+
+    @patch("streamxpress_mcp.server.get_client")
+    def test_select_port(self, mock_get_client):
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
+        from streamxpress_mcp.server import streamxpress_select_port
+        result = streamxpress_select_port(serial=217400001, port_num=1)
+        assert result["status"] == "ok"
+        mock_client.select_port.assert_called_once_with(217400001, 1, 0)
+
+    @patch("streamxpress_mcp.server.get_client")
+    def test_open_file(self, mock_get_client):
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
+        from streamxpress_mcp.server import streamxpress_open_file
+        result = streamxpress_open_file("C:\\Streams\\test.ts")
+        assert result["status"] == "ok"
+
+
+class TestServerPlayoutTools:
+    @patch("streamxpress_mcp.server.get_client")
+    def test_start(self, mock_get_client):
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
+        from streamxpress_mcp.server import streamxpress_start
+        result = streamxpress_start()
+        assert result["status"] == "playing"
+
+    @patch("streamxpress_mcp.server.get_client")
+    def test_stop(self, mock_get_client):
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
+        from streamxpress_mcp.server import streamxpress_stop
+        result = streamxpress_stop()
+        assert result["status"] == "stopped"
+
+    @patch("streamxpress_mcp.server.get_client")
+    def test_get_status(self, mock_get_client):
+        mock_client = MagicMock()
+        mock_client.get_status.return_value = {
+            "position_percent": 75.5, "num_wraps": 2,
+            "playout_state": 1, "file_name": "test.ts", "ts_rate_bps": 25_000_000}
+        mock_get_client.return_value = mock_client
+        from streamxpress_mcp.server import streamxpress_get_status
+        result = streamxpress_get_status()
+        assert result["position_percent"] == 75.5
+
+
+class TestServerParamTools:
+    @patch("streamxpress_mcp.server.get_client")
+    def test_set_rate(self, mock_get_client):
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
+        from streamxpress_mcp.server import streamxpress_set_rate
+        result = streamxpress_set_rate(25_000_000)
+        assert result["status"] == "ok"
+
+    @patch("streamxpress_mcp.server.get_client")
+    def test_set_tsoip(self, mock_get_client):
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
+        from streamxpress_mcp.server import streamxpress_set_tsoip_params
+        result = streamxpress_set_tsoip_params(dest_ip="239.1.1.1", dest_port=1234)
+        assert result["status"] == "ok"
+
+    @patch("streamxpress_mcp.server.get_client")
+    def test_set_rf(self, mock_get_client):
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
+        from streamxpress_mcp.server import streamxpress_set_rf_params
+        result = streamxpress_set_rf_params(frequency_hz=500_000_000, level_dbm=-37.5)
+        assert result["status"] == "ok"
+
+    @patch("streamxpress_mcp.server.get_client")
+    def test_set_asi(self, mock_get_client):
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
+        from streamxpress_mcp.server import streamxpress_set_asi_params
+        result = streamxpress_set_asi_params(remux=True, playout_rate=20_000_000)
+        assert result["status"] == "ok"
