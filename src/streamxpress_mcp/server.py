@@ -3,8 +3,9 @@
 from fastmcp import FastMCP
 
 from .client import StreamXpressClient
-from .config import load_config
+from .config import load_config, resolve_wsdl_path
 from .launcher import launch_streamxpress
+from .sprc_import import SPRC_client
 
 # ── FastMCP application ──
 
@@ -19,7 +20,14 @@ def get_client() -> StreamXpressClient:
     """Return the global singleton client, creating it if needed."""
     global _client
     if _client is None:
-        _client = StreamXpressClient()
+        cfg = load_config()
+        wsdl = resolve_wsdl_path(cfg)
+        if wsdl is not None:
+            _client = StreamXpressClient(
+                sprc_factory=lambda: SPRC_client(wsdl_template=wsdl)
+            )
+        else:
+            _client = StreamXpressClient()
     return _client
 
 

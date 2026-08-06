@@ -289,3 +289,39 @@ class TestLaunchTool:
         result = launch()
         assert result == {"ok": True, "pid": 12345, "port": 5000, "ready": True}
         assert mock_launch.call_count == 1
+
+
+class TestGetClientWsdl:
+    @pytest.fixture(autouse=True)
+    def reset_client_singleton(self):
+        import streamxpress_mcp.server as server_mod
+
+        server_mod._client = None
+        yield
+        server_mod._client = None
+
+    @patch("streamxpress_mcp.server.load_config")
+    @patch("streamxpress_mcp.server.resolve_wsdl_path")
+    def test_custom_wsdl_used_when_configured(self, mock_resolve, mock_load):
+        from streamxpress_mcp.config import StreamXpressConfig
+        from streamxpress_mcp.server import get_client
+
+        mock_load.return_value = StreamXpressConfig(sprc_api_path="D:/SpRcApi")
+        mock_resolve.return_value = "D:/SpRcApi/WSDL/SpRc.wsdl"
+
+        client = get_client()
+        sprc = client._sprc_factory()
+        assert sprc._wsdl_template == "D:/SpRcApi/WSDL/SpRc.wsdl"
+
+    @patch("streamxpress_mcp.server.load_config")
+    @patch("streamxpress_mcp.server.resolve_wsdl_path")
+    def test_default_factory_when_no_custom_wsdl(self, mock_resolve, mock_load):
+        from streamxpress_mcp.config import StreamXpressConfig
+        from streamxpress_mcp.server import get_client
+
+        mock_load.return_value = StreamXpressConfig()
+        mock_resolve.return_value = None
+
+        client = get_client()
+        sprc = client._sprc_factory()
+        assert sprc._wsdl_template is None

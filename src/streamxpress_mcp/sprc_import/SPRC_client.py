@@ -24,10 +24,11 @@ class SPRC_client:
     _zeep_client: Optional[zeep.Client]
     _wsdl_file : str
     
-    def __init__(self):
+    def __init__(self, wsdl_template: str | None = None):
         """ Constructor """
         self._zeep_client = None
         self._wsdl_file = ''
+        self._wsdl_template = wsdl_template
 
     def cleanup(self) -> None:
         """ Cleans up zeep client and deletes temporary wsdl-file """
@@ -485,7 +486,10 @@ class SPRC_client:
         name += '_' + str(ip_port)
         wsdl_file_name = f'SpRc_{name}.wsdl'
         # Create a new wsdl file derived from the original wsdl
-        orig_wsdl = Path(__file__).parent.joinpath('SpRc.wsdl')
+        if self._wsdl_template:
+            orig_wsdl = Path(self._wsdl_template)
+        else:
+            orig_wsdl = Path(__file__).parent.joinpath('SpRc.wsdl')
         if not os.path.isfile(orig_wsdl):
             raise SpRcException(SPRC_RESULT.E_FILE_CANT_FIND, 'SpRc.wsdl file not found')
         orig_wsdl_txt = orig_wsdl.read_text()
