@@ -38,3 +38,18 @@ def test_launch_starts_with_rc_args_and_probes_port(mock_popen, mock_port_open, 
         creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP,
     )
     assert result == {"ok": True, "pid": 12345, "port": 5000, "ready": True}
+
+
+@patch("streamxpress_mcp.launcher._port_open")
+@patch("streamxpress_mcp.launcher.subprocess.Popen")
+def test_launch_returns_error_when_popen_raises_oserror(mock_popen, mock_port_open, tmp_path):
+    exe = tmp_path / "StreamXpress64.exe"
+    exe.write_text("", encoding="utf-8")
+    mock_popen.side_effect = OSError("dll missing")
+
+    cfg = StreamXpressConfig(streamxpress_path=str(exe), rc_port=5000)
+    result = launcher.launch_streamxpress(cfg)
+
+    assert result["ok"] is False
+    assert "启动 StreamXpress 失败" in result["error"]
+    assert "dll missing" in result["error"]

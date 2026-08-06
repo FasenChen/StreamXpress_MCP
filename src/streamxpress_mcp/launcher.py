@@ -31,12 +31,15 @@ def launch_streamxpress(cfg: StreamXpressConfig) -> dict:
     if not Path(exe).is_file():
         return {"ok": False, "error": f"StreamXpress 可执行文件不存在: {exe}"}
 
-    proc = subprocess.Popen(
-        [exe, "-rc", str(cfg.rc_port)],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP,
-    )
+    try:
+        proc = subprocess.Popen(
+            [exe, "-rc", str(cfg.rc_port)],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP,
+        )
+    except OSError as exc:
+        return {"ok": False, "error": f"启动 StreamXpress 失败: {exc}"}
     ready = False
     for _ in range(10):
         time.sleep(0.5)
