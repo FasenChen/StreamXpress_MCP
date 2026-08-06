@@ -15,3 +15,6 @@ reasonix.toml
 
 # DekTec official downloads (copyrighted, not for redistribution)
 StreamXpress_Official_Data/
+
+# Git worktrees
+.worktrees/
