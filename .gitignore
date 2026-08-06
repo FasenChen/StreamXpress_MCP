@@ -11,6 +11,8 @@ build/
 *.wsdl
 # ...but the SpRc.wsdl template in the package IS required at runtime
 !src/streamxpress_mcp/sprc_import/SpRc.wsdl
+# ...and the official SDK's WSDL ships with the repo by user decision
+!SpRcApi/WSDL/SpRc.wsdl
 
 # Reasonix local metadata
 .reasonix/

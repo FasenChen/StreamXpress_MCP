@@ -1,0 +1,1252 @@
+<?xml version="1.0" encoding="UTF-8"?>
+ <schema targetNamespace="urn:SpRc"
+  xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/"
+  xmlns:SOAP-ENC="http://schemas.xmlsoap.org/soap/encoding/"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+  xmlns:SpRc="urn:SpRc"
+  xmlns="http://www.w3.org/2001/XMLSchema"
+  elementFormDefault="qualified"
+  attributeFormDefault="unqualified">
+  <import namespace="http://schemas.xmlsoap.org/soap/encoding/"/>
+  <simpleType name="CmPathType">
+   <restriction base="xsd:string">
+    <enumeration value="CONSTANT-DELAY"/><!-- enum const = 0 -->
+    <enumeration value="CONSTANT-DOPPLER"/><!-- enum const = 1 -->
+    <enumeration value="RAYLEIGH-JAKES"/><!-- enum const = 2 -->
+    <enumeration value="RAYLEIGH-GAUSSIAN"/><!-- enum const = 3 -->
+   </restriction>
+  </simpleType>
+  <simpleType name="UnsignedByteArray">
+   <restriction base="xsd:base64Binary">
+   </restriction>
+  </simpleType>
+  <complexType name="UnsignedShortArray">
+   <sequence>
+    <element name="item" type="xsd:unsignedShort" minOccurs="0" maxOccurs="unbounded" nillable="true"/>
+   </sequence>
+  </complexType>
+  <complexType name="PortDesc">
+   <sequence>
+     <element name="Serial" type="xsd:long" minOccurs="1" maxOccurs="1"/>
+     <element name="TypeNumber" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="Ip" type="SpRc:UnsignedByteArray" minOccurs="1" maxOccurs="1" nillable="false"/>
+     <element name="Mac" type="SpRc:UnsignedByteArray" minOccurs="1" maxOccurs="1" nillable="false"/>
+     <element name="FirmwareVersion" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="FirmwareVariant" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="Port" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="OutputType" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="Capabilities" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="InUse" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+   </sequence>
+  </complexType>
+  <complexType name="PortDescArray">
+   <sequence>
+    <element name="item" type="SpRc:PortDesc" minOccurs="0" maxOccurs="unbounded" nillable="true"/>
+   </sequence>
+  </complexType>
+  <complexType name="PlayoutInfo">
+   <sequence>
+     <element name="BurstMode" type="xsd:boolean" minOccurs="1" maxOccurs="1"/>
+     <element name="ExtClock" type="xsd:boolean" minOccurs="1" maxOccurs="1"/>
+     <element name="FileCanBeRead" type="xsd:boolean" minOccurs="1" maxOccurs="1"/>
+     <element name="Filename" type="xsd:string" minOccurs="0" maxOccurs="1" nillable="true"/>
+     <element name="FileOffsetEnd" type="xsd:long" minOccurs="1" maxOccurs="1"/>
+     <element name="FileOffsetStart" type="xsd:long" minOccurs="1" maxOccurs="1"/>
+     <element name="FilePlayedBytes" type="xsd:long" minOccurs="1" maxOccurs="1"/>
+     <element name="FileRateEst" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="FileSize" type="xsd:long" minOccurs="1" maxOccurs="1"/>
+     <element name="FileType" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="LoopBeginRel" type="xsd:double" minOccurs="1" maxOccurs="1"/>
+     <element name="LoopEndRel" type="xsd:double" minOccurs="1" maxOccurs="1"/>
+     <element name="LoopFlags" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="PlayoutState" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="PlayoutRate" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="Remux" type="xsd:boolean" minOccurs="1" maxOccurs="1"/>
+     <element name="SymRate" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="TimeLoopBegin" type="xsd:double" minOccurs="1" maxOccurs="1"/>
+     <element name="TimeLoopEnd" type="xsd:double" minOccurs="1" maxOccurs="1"/>
+     <element name="TimeOffset" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="TsRate" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="TpSize" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="TxPolarity" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+   </sequence>
+  </complexType>
+  <complexType name="SubLoopPars">
+   <sequence>
+     <element name="UseSubLoop" type="xsd:boolean" minOccurs="1" maxOccurs="1"/>
+     <element name="LoopBeginRel" type="xsd:double" minOccurs="1" maxOccurs="1"/>
+     <element name="LoopEndRel" type="xsd:double" minOccurs="1" maxOccurs="1"/>
+   </sequence>
+  </complexType>
+  <complexType name="PlayoutStatus">
+   <sequence>
+     <element name="FifoLoad" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="NumErrors" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="NumWraps" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="PosRel" type="xsd:double" minOccurs="1" maxOccurs="1"/>
+     <element name="TotalMemLoad" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+   </sequence>
+  </complexType>
+  <complexType name="SfnStatus">
+   <sequence>
+     <element name="GpsStatus" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="GpsTime" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="SfnMode" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="SfnStatus" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+   </sequence>
+  </complexType>
+  <complexType name="AsiPars">
+   <sequence>
+     <element name="Remux" type="xsd:boolean" minOccurs="1" maxOccurs="1"/>
+     <element name="PlayoutRate" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="BurstMode" type="xsd:boolean" minOccurs="1" maxOccurs="1"/>
+     <element name="TxMode" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="Polarity" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+   </sequence>
+  </complexType>
+  <complexType name="HwNoisePars">
+   <sequence>
+     <element name="SnrOn" type="xsd:boolean" minOccurs="1" maxOccurs="1"/>
+     <element name="Snr" type="xsd:double" minOccurs="1" maxOccurs="1"/>
+   </sequence>
+  </complexType>
+  <complexType name="CmPath">
+   <sequence>
+     <element name="Type" type="SpRc:CmPathType" minOccurs="1" maxOccurs="1"/>
+     <element name="Attenuation" type="xsd:double" minOccurs="1" maxOccurs="1"/>
+     <element name="Delay" type="xsd:double" minOccurs="1" maxOccurs="1"/>
+     <element name="Phase" type="xsd:double" minOccurs="1" maxOccurs="1"/>
+     <element name="Doppler" type="xsd:double" minOccurs="1" maxOccurs="1"/>
+   </sequence>
+  </complexType>
+  <complexType name="CmPathArray">
+   <sequence>
+    <element name="item" type="SpRc:CmPath" minOccurs="0" maxOccurs="unbounded" nillable="true"/>
+   </sequence>
+  </complexType>
+  <complexType name="CmPars">
+   <sequence>
+     <element name="CmEnable" type="xsd:boolean" minOccurs="1" maxOccurs="1"/>
+     <element name="AwgnEnable" type="xsd:boolean" minOccurs="1" maxOccurs="1"/>
+     <element name="PathsEnable" type="xsd:boolean" minOccurs="1" maxOccurs="1"/>
+     <element name="UseManualSeed" type="xsd:boolean" minOccurs="1" maxOccurs="1"/>
+     <element name="ManualSeed" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="Snr" type="xsd:double" minOccurs="1" maxOccurs="1"/>
+     <element name="Paths" type="SpRc:CmPathArray" minOccurs="1" maxOccurs="1" nillable="false"/>
+   </sequence>
+  </complexType>
+  <complexType name="CmmbPars">
+   <sequence>
+     <element name="Bandwidth" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="AreaId" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="TxId" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+   </sequence>
+  </complexType>
+  <complexType name="DvbT2Group">
+   <sequence>
+     <element name="GroupName" type="xsd:string" minOccurs="0" maxOccurs="1" nillable="true"/>
+     <element name="GroupRefName" type="xsd:string" minOccurs="0" maxOccurs="1" nillable="true"/>
+   </sequence>
+  </complexType>
+  <complexType name="DvbT2Pars">
+   <sequence>
+     <element name="T2Version" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="Bandwidth" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="FftMode" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="Miso" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="GuardInterval" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="Papr" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="BwtExt" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="PilotPattern" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="NumT2Frames" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="NumDataSyms" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="L1Modulation" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="FefEnable" type="xsd:boolean" minOccurs="1" maxOccurs="1"/>
+     <element name="FefType" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="FefLength" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="FefS1" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="FefS2" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="FefInterval" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="FefSignal" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="CellId" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="NetworkId" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="T2SystemId" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="Frequency" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="Hem" type="xsd:boolean" minOccurs="1" maxOccurs="1"/>
+     <element name="Npd" type="xsd:boolean" minOccurs="1" maxOccurs="1"/>
+     <element name="IssyEnabled" type="xsd:boolean" minOccurs="1" maxOccurs="1"/>
+     <element name="Id" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="GroupId" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="Type" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="CodeRate" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="Modulation" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="Rotation" type="xsd:boolean" minOccurs="1" maxOccurs="1"/>
+     <element name="FecType" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="TimeIlLength" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="TimeIlType" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="InBandFlag" type="xsd:boolean" minOccurs="1" maxOccurs="1"/>
+     <element name="NumBlocks" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="FollowMode" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+   </sequence>
+  </complexType>
+  <complexType name="IsdbtLayerPars">
+   <sequence>
+     <element name="NumSegments" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="Modulation" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="CodeRate" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="TimeInterleave" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+   </sequence>
+  </complexType>
+  <complexType name="Pid2Layer">
+   <sequence>
+     <element name="Pid" type="xsd:unsignedShort" minOccurs="1" maxOccurs="1"/>
+     <element name="Layer" type="xsd:unsignedShort" minOccurs="1" maxOccurs="1"/>
+   </sequence>
+  </complexType>
+  <complexType name="Pid2LayerArray">
+   <sequence>
+    <element name="item" type="SpRc:Pid2Layer" minOccurs="0" maxOccurs="unbounded" nillable="true"/>
+   </sequence>
+  </complexType>
+  <complexType name="IsdbtLayerParsArray">
+   <sequence>
+    <element name="item" type="SpRc:IsdbtLayerPars" minOccurs="0" maxOccurs="unbounded" nillable="true"/>
+   </sequence>
+  </complexType>
+  <complexType name="IsdbtPars">
+   <sequence>
+     <element name="DoMux" type="xsd:boolean" minOccurs="1" maxOccurs="1"/>
+     <element name="BType" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="Mode" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="Guard" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="PartialRx" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="Emergency" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="IipPid" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="LayerPars" type="SpRc:IsdbtLayerParsArray" minOccurs="1" maxOccurs="1" nillable="false"/>
+     <element name="Pid2Layer" type="SpRc:Pid2LayerArray" minOccurs="1" maxOccurs="1" nillable="false"/>
+     <element name="LayerOther" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="ParXtra0" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="Virtual13Segm" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+   </sequence>
+  </complexType>
+  <complexType name="ModPars">
+   <sequence>
+     <element name="ModType" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="ParXtra0" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="ParXtra1" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="ParXtra2" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="SymRate" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+   </sequence>
+  </complexType>
+  <complexType name="RemuxPars">
+   <sequence>
+     <element name="Remux" type="xsd:boolean" minOccurs="1" maxOccurs="1"/>
+   </sequence>
+  </complexType>
+  <complexType name="RfPars">
+   <sequence>
+     <element name="Frequency" type="xsd:long" minOccurs="1" maxOccurs="1"/>
+     <element name="Level" type="xsd:double" minOccurs="1" maxOccurs="1"/>
+     <element name="SpecInv" type="xsd:boolean" minOccurs="1" maxOccurs="1"/>
+     <element name="CW" type="xsd:boolean" minOccurs="1" maxOccurs="1"/>
+     <element name="RfEnabledOnStop" type="xsd:boolean" minOccurs="1" maxOccurs="1"/>
+   </sequence>
+  </complexType>
+  <complexType name="SpiPars">
+   <sequence>
+     <element name="Remux" type="xsd:boolean" minOccurs="1" maxOccurs="1"/>
+     <element name="PlayoutRate" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="TxMode" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="Power" type="xsd:boolean" minOccurs="1" maxOccurs="1"/>
+   </sequence>
+  </complexType>
+  <complexType name="DateTime">
+   <sequence>
+     <element name="Year" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="Month" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="Day" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="Hour" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="Minute" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="Second" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+   </sequence>
+  </complexType>
+  <complexType name="TdtAdaptPars">
+   <sequence>
+     <element name="TdtAdaptMode" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="TdtDateTime" type="SpRc:DateTime" minOccurs="1" maxOccurs="1"/>
+   </sequence>
+  </complexType>
+  <complexType name="TsgPars">
+   <sequence>
+     <element name="Type" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="Pid" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="VidStd" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="Flags" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+   </sequence>
+  </complexType>
+  <complexType name="TsoipPars">
+   <sequence>
+     <element name="TxMode" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="Ip" type="SpRc:UnsignedByteArray" minOccurs="1" maxOccurs="1" nillable="false"/>
+     <element name="Port" type="xsd:unsignedShort" minOccurs="1" maxOccurs="1"/>
+     <element name="Ip2" type="SpRc:UnsignedByteArray" minOccurs="1" maxOccurs="1" nillable="false"/>
+     <element name="Port2" type="xsd:unsignedShort" minOccurs="1" maxOccurs="1"/>
+     <element name="EnaFailover" type="xsd:boolean" minOccurs="1" maxOccurs="1"/>
+     <element name="TimeToLive" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="NumTpPerIp" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="Protocol" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="DiffServ" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="FecMode" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="FecNumRows" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="FecNumCols" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+   </sequence>
+  </complexType>
+  <complexType name="PlayoutSfnPars">
+   <sequence>
+     <element name="PlayoutState" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="SfnStartTime" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+   </sequence>
+  </complexType>
+  <!-- operation request element -->
+  <element name="OpenSession">
+   <complexType>
+    <sequence>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="OpenSessionResponse">
+   <complexType>
+    <sequence>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="CloseSession">
+   <complexType>
+    <sequence>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="CloseSessionResponse">
+   <complexType>
+    <sequence>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="GetAppInfo">
+   <complexType>
+    <sequence>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="GetAppInfoResponse">
+   <complexType>
+    <sequence>
+     <element name="AppName" type="xsd:string" minOccurs="0" maxOccurs="1" nillable="true"/>
+     <element name="MajorVersion" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="MinorVersion" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="BugFixVersion" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="BuildNumber" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="GetRemoteVersion">
+   <complexType>
+    <sequence>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="GetRemoteVersionResponse">
+   <complexType>
+    <sequence>
+     <element name="MajorVersion" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="MinorVersion" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="BugFixVersion" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="BuildNumber" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="GetRemoteDtapiVersion">
+   <complexType>
+    <sequence>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="GetRemoteDtapiVersionResponse">
+   <complexType>
+    <sequence>
+     <element name="MajorVersion" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="MinorVersion" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="BugFixVersion" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="BuildNumber" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="ScanPorts">
+   <complexType>
+    <sequence>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="ScanPortsResponse">
+   <complexType>
+    <sequence>
+     <element name="PortDescs" type="SpRc:PortDescArray" minOccurs="1" maxOccurs="1" nillable="false"/>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="SelectPort">
+   <complexType>
+    <sequence>
+     <element name="Serial" type="xsd:long" minOccurs="1" maxOccurs="1"/>
+     <element name="PortNr" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="Modulation" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="SelectPortResponse">
+   <complexType>
+    <sequence>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+     <element name="Status" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="SelectDtaPlus">
+   <complexType>
+    <sequence>
+     <element name="UseDtaPlus" type="xsd:boolean" minOccurs="1" maxOccurs="1"/>
+     <element name="Serial" type="xsd:long" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="SelectDtaPlusResponse">
+   <complexType>
+    <sequence>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+     <element name="Status" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="ClearErrors">
+   <complexType>
+    <sequence>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="ClearErrorsResponse">
+   <complexType>
+    <sequence>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="GetPlayoutInfo">
+   <complexType>
+    <sequence>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="GetPlayoutInfoResponse">
+   <complexType>
+    <sequence>
+     <element name="PlayoutInfo" type="SpRc:PlayoutInfo" minOccurs="1" maxOccurs="1"/>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="SetSubLoopPars">
+   <complexType>
+    <sequence>
+     <element name="SubLoopPars" type="SpRc:SubLoopPars" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="SetSubLoopParsResponse">
+   <complexType>
+    <sequence>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="GetPlayoutStatus">
+   <complexType>
+    <sequence>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="GetPlayoutStatusResponse">
+   <complexType>
+    <sequence>
+     <element name="PlayoutStatus" type="SpRc:PlayoutStatus" minOccurs="1" maxOccurs="1"/>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="GetSfnStatus">
+   <complexType>
+    <sequence>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="GetSfnStatusResponse">
+   <complexType>
+    <sequence>
+     <element name="SfnStatus" type="SpRc:SfnStatus" minOccurs="1" maxOccurs="1"/>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="Normalise">
+   <complexType>
+    <sequence>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="NormaliseResponse">
+   <complexType>
+    <sequence>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="OpenChannelModellingFile">
+   <complexType>
+    <sequence>
+     <element name="Filename" type="xsd:string" minOccurs="0" maxOccurs="1" nillable="true"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="OpenChannelModellingFileResponse">
+   <complexType>
+    <sequence>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="OpenFile">
+   <complexType>
+    <sequence>
+     <element name="Filename" type="xsd:string" minOccurs="0" maxOccurs="1" nillable="true"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="OpenFileResponse">
+   <complexType>
+    <sequence>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="SaveChannelModellingSettings">
+   <complexType>
+    <sequence>
+     <element name="Filename" type="xsd:string" minOccurs="0" maxOccurs="1" nillable="true"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="SaveChannelModellingSettingsResponse">
+   <complexType>
+    <sequence>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="SaveSettings">
+   <complexType>
+    <sequence>
+     <element name="Filename" type="xsd:string" minOccurs="0" maxOccurs="1" nillable="true"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="SaveSettingsResponse">
+   <complexType>
+    <sequence>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="GetAsiPars">
+   <complexType>
+    <sequence>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="GetAsiParsResponse">
+   <complexType>
+    <sequence>
+     <element name="AsiPars" type="SpRc:AsiPars" minOccurs="1" maxOccurs="1"/>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="SetAsiPars">
+   <complexType>
+    <sequence>
+     <element name="AsiPars" type="SpRc:AsiPars" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="SetAsiParsResponse">
+   <complexType>
+    <sequence>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="SetHwNoisePars">
+   <complexType>
+    <sequence>
+     <element name="HwNoisePars" type="SpRc:HwNoisePars" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="SetHwNoiseParsResponse">
+   <complexType>
+    <sequence>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="GetHwNoisePars">
+   <complexType>
+    <sequence>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="GetHwNoiseParsResponse">
+   <complexType>
+    <sequence>
+     <element name="HwNoisePars" type="SpRc:HwNoisePars" minOccurs="1" maxOccurs="1"/>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="GetIqGain">
+   <complexType>
+    <sequence>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="GetIqGainResponse">
+   <complexType>
+    <sequence>
+     <element name="IqGain" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="SetIqGain">
+   <complexType>
+    <sequence>
+     <element name="IqGain" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="SetIqGainResponse">
+   <complexType>
+    <sequence>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="GetChannelModellingPars">
+   <complexType>
+    <sequence>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="GetChannelModellingParsResponse">
+   <complexType>
+    <sequence>
+     <element name="CmPars" type="SpRc:CmPars" minOccurs="1" maxOccurs="1"/>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="SetChannelModellingPars">
+   <complexType>
+    <sequence>
+     <element name="CmPars" type="SpRc:CmPars" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="SetChannelModellingParsResponse">
+   <complexType>
+    <sequence>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="GetCmmbPars">
+   <complexType>
+    <sequence>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="GetCmmbParsResponse">
+   <complexType>
+    <sequence>
+     <element name="CmmbPars" type="SpRc:CmmbPars" minOccurs="1" maxOccurs="1"/>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="SetCmmbPars">
+   <complexType>
+    <sequence>
+     <element name="CmmbPars" type="SpRc:CmmbPars" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="SetCmmbParsResponse">
+   <complexType>
+    <sequence>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="GetSignalSource">
+   <complexType>
+    <sequence>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="GetSignalSourceResponse">
+   <complexType>
+    <sequence>
+     <element name="SignalSource" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="SetSignalSource">
+   <complexType>
+    <sequence>
+     <element name="SignalSource" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="SetSignalSourceResponse">
+   <complexType>
+    <sequence>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="GetDvbT2Group">
+   <complexType>
+    <sequence>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="GetDvbT2GroupResponse">
+   <complexType>
+    <sequence>
+     <element name="DvbT2Group" type="SpRc:DvbT2Group" minOccurs="1" maxOccurs="1"/>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="SetDvbT2Group">
+   <complexType>
+    <sequence>
+     <element name="DvbT2Group" type="SpRc:DvbT2Group" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="SetDvbT2GroupResponse">
+   <complexType>
+    <sequence>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="GetDvbT2Pars">
+   <complexType>
+    <sequence>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="GetDvbT2ParsResponse">
+   <complexType>
+    <sequence>
+     <element name="DvbT2Pars" type="SpRc:DvbT2Pars" minOccurs="1" maxOccurs="1"/>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="SetDvbT2Pars">
+   <complexType>
+    <sequence>
+     <element name="DvbT2Pars" type="SpRc:DvbT2Pars" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="SetDvbT2ParsResponse">
+   <complexType>
+    <sequence>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="GetIsdbtPars">
+   <complexType>
+    <sequence>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="GetIsdbtParsResponse">
+   <complexType>
+    <sequence>
+     <element name="IsdbtPars" type="SpRc:IsdbtPars" minOccurs="1" maxOccurs="1"/>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="SetIsdbtPars">
+   <complexType>
+    <sequence>
+     <element name="IsdbtPars" type="SpRc:IsdbtPars" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="SetIsdbtParsResponse">
+   <complexType>
+    <sequence>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="GetModPars">
+   <complexType>
+    <sequence>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="GetModParsResponse">
+   <complexType>
+    <sequence>
+     <element name="ModPars" type="SpRc:ModPars" minOccurs="1" maxOccurs="1"/>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="SetModPars">
+   <complexType>
+    <sequence>
+     <element name="ModPars" type="SpRc:ModPars" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="SetModParsResponse">
+   <complexType>
+    <sequence>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="SetRemux">
+   <complexType>
+    <sequence>
+     <element name="Remux" type="SpRc:RemuxPars" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="SetRemuxResponse">
+   <complexType>
+    <sequence>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="GetRfPars">
+   <complexType>
+    <sequence>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="GetRfParsResponse">
+   <complexType>
+    <sequence>
+     <element name="RfPars" type="SpRc:RfPars" minOccurs="1" maxOccurs="1"/>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="SetRfPars">
+   <complexType>
+    <sequence>
+     <element name="RfPars" type="SpRc:RfPars" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="SetRfParsResponse">
+   <complexType>
+    <sequence>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="SetSfnMode">
+   <complexType>
+    <sequence>
+     <element name="SfnMode" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="SetSfnModeResponse">
+   <complexType>
+    <sequence>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="GetSpiPars">
+   <complexType>
+    <sequence>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="GetSpiParsResponse">
+   <complexType>
+    <sequence>
+     <element name="SpiPars" type="SpRc:SpiPars" minOccurs="1" maxOccurs="1"/>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="SetSpiPars">
+   <complexType>
+    <sequence>
+     <element name="SpiPars" type="SpRc:SpiPars" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="SetSpiParsResponse">
+   <complexType>
+    <sequence>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="GetTdtAdaptPars">
+   <complexType>
+    <sequence>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="GetTdtAdaptParsResponse">
+   <complexType>
+    <sequence>
+     <element name="TdtAdaptPars" type="SpRc:TdtAdaptPars" minOccurs="1" maxOccurs="1"/>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="SetTdtAdaptPars">
+   <complexType>
+    <sequence>
+     <element name="TdtAdaptPars" type="SpRc:TdtAdaptPars" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="SetTdtAdaptParsResponse">
+   <complexType>
+    <sequence>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="GetTsgPars">
+   <complexType>
+    <sequence>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="GetTsgParsResponse">
+   <complexType>
+    <sequence>
+     <element name="TsgPars" type="SpRc:TsgPars" minOccurs="1" maxOccurs="1"/>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="SetTsgPars">
+   <complexType>
+    <sequence>
+     <element name="TsgPars" type="SpRc:TsgPars" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="SetTsgParsResponse">
+   <complexType>
+    <sequence>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="GetTsoipPars">
+   <complexType>
+    <sequence>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="GetTsoipParsResponse">
+   <complexType>
+    <sequence>
+     <element name="TsoipPars" type="SpRc:TsoipPars" minOccurs="1" maxOccurs="1"/>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="SetTsoipPars">
+   <complexType>
+    <sequence>
+     <element name="TsoipPars" type="SpRc:TsoipPars" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="SetTsoipParsResponse">
+   <complexType>
+    <sequence>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="GetUseNit">
+   <complexType>
+    <sequence>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="GetUseNitResponse">
+   <complexType>
+    <sequence>
+     <element name="UseNit" type="xsd:boolean" minOccurs="1" maxOccurs="1"/>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="SetUseNit">
+   <complexType>
+    <sequence>
+     <element name="UseNit" type="xsd:boolean" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="SetUseNitResponse">
+   <complexType>
+    <sequence>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="SetLoopFlags">
+   <complexType>
+    <sequence>
+     <element name="LoopFlags" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="SetLoopFlagsResponse">
+   <complexType>
+    <sequence>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="SetPlayoutState">
+   <complexType>
+    <sequence>
+     <element name="PlayoutState" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="SetPlayoutStateResponse">
+   <complexType>
+    <sequence>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="SetPlayoutStateSfn">
+   <complexType>
+    <sequence>
+     <element name="PlayoutSfnPars" type="SpRc:PlayoutSfnPars" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="SetPlayoutStateSfnResponse">
+   <complexType>
+    <sequence>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="SetTsRate">
+   <complexType>
+    <sequence>
+     <element name="TsRate" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="SetTsRateResponse">
+   <complexType>
+    <sequence>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="WaitForCondition">
+   <complexType>
+    <sequence>
+     <element name="Condition" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="TimeOut" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="WaitForConditionResponse">
+   <complexType>
+    <sequence>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="ShowWindow">
+   <complexType>
+    <sequence>
+     <element name="Show" type="xsd:boolean" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="ShowWindowResponse">
+   <complexType>
+    <sequence>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+ </schema>
+
