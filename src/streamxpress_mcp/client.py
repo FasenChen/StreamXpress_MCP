@@ -6,9 +6,15 @@ from .sprc_import import SPRC, DTAPI
 
 
 class StreamXpressClient:
-    """Thin wrapper managing a single SPRC_client SOAP session."""
+    """Thin wrapper managing a single SPRC_client SOAP session.
 
-    def __init__(self):
+    Args:
+        sprc_factory: Optional callable → SPRC_client instance (for DI in tests).
+                      Defaults to SPRC_client.
+    """
+
+    def __init__(self, sprc_factory=None):
+        self._sprc_factory = sprc_factory or SPRC_client
         self._sprc: SPRC_client | None = None
         self._connected = False
 
@@ -21,7 +27,7 @@ class StreamXpressClient:
         """
         if self._connected:
             raise RuntimeError("already connected — disconnect first")
-        self._sprc = SPRC_client()
+        self._sprc = self._sprc_factory()
         self._sprc.open_session(ip_host=host, ip_port=port)
         self._connected = True
 

@@ -1,10 +1,10 @@
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 
 @pytest.fixture
 def mock_sprc():
-    """Return a MagicMock standing in for SPRC_client instance."""
+    """Return a MagicMock that mimics SPRC_client."""
     m = MagicMock()
     m.open_session.return_value = None
     m.cleanup.return_value = None
@@ -21,14 +21,7 @@ def mock_sprc():
 
 @pytest.fixture
 def client(mock_sprc):
-    """Return a StreamXpressClient with SPRC_client() → mock_sprc."""
-    # Patch at the point of use: replace the class reference so SPRC_client() returns mock_sprc
-    import streamxpress_mcp.client as client_mod
+    """Return a StreamXpressClient with a mocked SPRC_client factory."""
+    from streamxpress_mcp.client import StreamXpressClient
 
-    orig = client_mod.SPRC_client
-    client_mod.SPRC_client = MagicMock(return_value=mock_sprc)
-    try:
-        c = client_mod.StreamXpressClient()
-        yield c
-    finally:
-        client_mod.SPRC_client = orig
+    return StreamXpressClient(sprc_factory=MagicMock(return_value=mock_sprc))
