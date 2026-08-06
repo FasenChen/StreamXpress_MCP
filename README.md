@@ -8,26 +8,34 @@
 - 一块 DekTec 输出适配器，持有 **DTC-300-SP**（播放许可）或 **DTC-300-NICP**（本机网卡 IP 推送许可）
 - Python 3.10+
 
+> **关于 StreamXpress 的安装位置**：StreamXpress 由 DekTec 安装程序安装，默认位于 `C:\Program Files\DekTec\StreamXpress\`，**不在系统 PATH 中**，不能直接在任意目录下执行 `StreamXpress.exe`。另外，可执行文件名可能是 `StreamXpress.exe`（v3.x）或 `StreamXpress64.exe`（部分版本），请以实际安装为准，用完整路径调用。
+>
+> MCP 服务本身**不需要**配置 StreamXpress 的安装位置——它通过 SpRcApi（HTTP/SOAP）远程控制接口连接 StreamXpress，只需在 `streamxpress_connect` 工具中指定 StreamXpress 所在主机的地址和 `-rc` 监听端口（默认 `http://localhost:5000`）。MCP 与 StreamXpress 可以分处两台机器。
+
 ## 快速开始
 
+MCP 客户端（WorkBuddy、Claude Desktop 等）会用配置里的 `command`（默认 `python`）启动本服务，而客户端解析到的 `python` 通常**不是**项目 venv 里的 python。因此**最简单的方式是直接把包装到当前 Python 环境，不使用 venv**：
+
 ```powershell
-# 1. 克隆并安装
+# 1. 克隆并安装（装到当前 Python 环境，不使用 venv）
 git clone <repo-url>
 cd StreamXpress_MCP
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
 pip install -e ".[dev]"
 
 # 2. 以远程控制模式启动 StreamXpress
-StreamXpress.exe -rc 5000
+#    可执行文件不在 PATH 中，需用完整路径；文件名可能是 StreamXpress.exe 或
+#    StreamXpress64.exe，以实际安装为准（也可先把其目录加入 PATH 再直接调用）
+& "C:\Program Files\DekTec\StreamXpress\StreamXpress64.exe" -rc 5000
 
 # 3. 运行 MCP 服务
 python -m streamxpress_mcp
 ```
 
+> **想用 venv 隔离？** 可以，但注意：MCP 客户端配置里的 `command` 必须指向 **venv 里的 python.exe 绝对路径**（如 `C:\...\StreamXpress_MCP\.venv\Scripts\python.exe`），不能写裸的 `python`——否则客户端会用系统 Python 启动进程，因找不到 `streamxpress_mcp` 模块而立即退出，表现为 `ModuleNotFoundError` 或 `MCP error -32000: Connection closed`。
+
 ## MCP 客户端配置
 
-在 MCP 客户端的配置文件中添加（如 Claude Desktop 的 `claude_desktop_config.json`）：
+在 MCP 客户端的配置文件中添加（如 WorkBuddy 的 `mcp.json`、Claude Desktop 的 `claude_desktop_config.json`）：
 
 ```json
 {
@@ -39,6 +47,8 @@ python -m streamxpress_mcp
   }
 }
 ```
+
+> 前提：`command` 里指定的 `python` 必须已安装本包（即执行过上面的 `pip install -e "./[dev]"`）。按上方“不使用 venv”的方式安装则保持 `"python"` 即可；若包装在 venv 里，则必须把 `command` 改为该 venv 的 `python.exe` 绝对路径。
 
 ## 可用工具
 
