@@ -131,3 +131,27 @@ class TestStreamXpressParams:
         call_args = mock_sprc.set_asi_pars.call_args[0][0]
         assert call_args.Remux is True
         assert call_args.PlayoutRate == 20_000_000
+
+
+class TestServerConnectTool:
+    @patch("streamxpress_mcp.server.get_client")
+    def test_connect_tool_succeeds(self, mock_get_client):
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
+
+        from streamxpress_mcp.server import streamxpress_connect
+
+        result = streamxpress_connect(host="http://localhost", port=5000)
+        assert result["status"] == "connected"
+        mock_client.connect.assert_called_once_with("http://localhost", 5000)
+
+    @patch("streamxpress_mcp.server.get_client")
+    def test_disconnect_tool_succeeds(self, mock_get_client):
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
+
+        from streamxpress_mcp.server import streamxpress_disconnect
+
+        result = streamxpress_disconnect()
+        assert result["status"] == "disconnected"
+        mock_client.disconnect.assert_called_once()

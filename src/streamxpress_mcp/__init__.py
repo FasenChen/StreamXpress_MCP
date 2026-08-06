@@ -6,6 +6,9 @@ from .sprc_import import (
     SpRcException, SPRC_RESULT,
 )
 
+from .client import StreamXpressClient
+from . import server  # noqa: F401
+
 __all__ = [
     "SPRC_client", "SPRC", "DTAPI",
     "SpRcAsiPars", "SpRcModPars", "SpRcPortDesc",
