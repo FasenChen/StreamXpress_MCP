@@ -4,8 +4,12 @@
 
 ## 前置条件
 
-- **StreamXpress** v3.x 已安装，且持有 **DTC-302-RC 许可证**（远程控制授权）
-- 一块 DekTec 输出适配器，持有 **DTC-300-SP**（播放许可）或 **DTC-300-NICP**（本机网卡 IP 推送许可）
+- **StreamXpress** v3.x 已安装
+- 一块 DekTec 输出适配器（如 DTU-315），其硬件中烧录了相应授权：
+  - **DTC-302-RC**（远程控制授权，`-rc` 远程控制模式必需）
+  - **DTC-300-SP**（播放许可）或 **DTC-300-NICP**（本机网卡 IP 推送许可）
+
+  > 这些许可证固化在 DekTec 设备硬件中，插入设备后 StreamXpress 会自动识别（设备信息中可见 `Remote-control license: Yes`），无需单独激活或配置文件。
 - Python 3.10+
 
 > **关于 StreamXpress 的安装位置**：StreamXpress 由 DekTec 安装程序安装，默认位于 `C:\Program Files\DekTec\StreamXpress\`，**不在系统 PATH 中**，不能直接在任意目录下执行 `StreamXpress.exe`。另外，可执行文件名可能是 `StreamXpress.exe`（v3.x）或 `StreamXpress64.exe`（部分版本），请以实际安装为准，用完整路径调用。
@@ -91,4 +95,4 @@ AI 依次调用:
 
 ## 许可证
 
-本项目封装了 DekTec SpRcApi。使用本软件配合 StreamXpress 进行码流推送，需要持有有效的 DekTec 许可证（DTC-300-SP + DTC-302-RC）。
+本项目封装了 DekTec SpRcApi。使用本软件配合 StreamXpress 进行码流推送，需要 DekTec 设备提供相应授权：**DTC-300-SP/NICP**（播放授权）与 **DTC-302-RC**（远程控制授权）。这些许可证固化在 DekTec 设备硬件中，插入设备即可使用，无需单独购买或激活许可证文件。
