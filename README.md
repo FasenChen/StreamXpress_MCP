@@ -10,7 +10,7 @@
 
 > **关于 StreamXpress 的安装位置**：StreamXpress 由 DekTec 安装程序安装，默认位于 `C:\Program Files\DekTec\StreamXpress\`，**不在系统 PATH 中**，不能直接在任意目录下执行 `StreamXpress.exe`。另外，可执行文件名可能是 `StreamXpress.exe`（v3.x）或 `StreamXpress64.exe`（部分版本），请以实际安装为准，用完整路径调用。
 >
-> MCP 服务本身**不需要**配置 StreamXpress 的安装位置——它通过 SpRcApi（HTTP/SOAP）远程控制接口连接 StreamXpress，只需在 `streamxpress_connect` 工具中指定 StreamXpress 所在主机的地址和 `-rc` 监听端口（默认 `http://localhost:5000`）。MCP 与 StreamXpress 可以分处两台机器。
+> MCP 服务本身**不需要**配置 StreamXpress 的安装位置——它通过 SpRcApi（HTTP/SOAP）远程控制接口连接 StreamXpress，只需在 `connect` 工具中指定 StreamXpress 所在主机的地址和 `-rc` 监听端口（默认 `http://localhost:5000`）。MCP 与 StreamXpress 可以分处两台机器。
 
 ## 快速开始
 
@@ -52,20 +52,22 @@ python -m streamxpress_mcp
 
 ## 可用工具
 
+> 工具注册名如左（不带前缀）。MCP 客户端（WorkBuddy、Claude Desktop 等）通常会在工具名前加上 MCP server 名前缀，例如 `connect` 在客户端中显示为 `streamxpress_connect`。
+
 | 工具 | 说明 |
 |---|---|
-| `streamxpress_connect` | 连接 StreamXpress RC 会话 |
-| `streamxpress_disconnect` | 断开连接 |
-| `streamxpress_scan_ports` | 扫描可用输出端口 |
-| `streamxpress_select_port` | 选择输出端口 |
-| `streamxpress_open_file` | 加载 TS 文件 |
-| `streamxpress_start` | 开始播放 |
-| `streamxpress_stop` | 停止播放 |
-| `streamxpress_get_status` | 查询播放进度和状态 |
-| `streamxpress_set_rate` | 设置 TS 码率（bps） |
-| `streamxpress_set_tsoip_params` | 配置 UDP/RTP TS-over-IP 输出参数 |
-| `streamxpress_set_rf_params` | 设置 RF 频率和电平 |
-| `streamxpress_set_asi_params` | 设置 ASI 重复用和包模式 |
+| `connect` | 连接 StreamXpress RC 会话 |
+| `disconnect` | 断开连接 |
+| `scan_ports` | 扫描可用输出端口 |
+| `select_port` | 选择输出端口 |
+| `open_file` | 加载 TS 文件 |
+| `start` | 开始播放 |
+| `stop` | 停止播放 |
+| `get_status` | 查询播放进度和状态 |
+| `set_rate` | 设置 TS 码率（bps） |
+| `set_tsoip_params` | 配置 UDP/RTP TS-over-IP 输出参数 |
+| `set_rf_params` | 设置 RF 频率和电平 |
+| `set_asi_params` | 设置 ASI 重复用和包模式 |
 
 ## AI 交互示例
 
@@ -73,14 +75,14 @@ python -m streamxpress_mcp
 用户: 把 C:\Streams\news.ts 以 25 Mbps 推送到组播地址 239.1.1.1:1234
 
 AI 依次调用:
-  1. streamxpress_connect(host="http://localhost", port=5000)
-  2. streamxpress_scan_ports() → 选择一个 TS-over-IP 端口
-  3. streamxpress_select_port(serial=..., port_num=1)
-  4. streamxpress_set_tsoip_params(dest_ip="239.1.1.1", dest_port=1234, protocol="UDP")
-  5. streamxpress_set_rate(rate_bps=25_000_000)
-  6. streamxpress_open_file(filepath="C:\\Streams\\news.ts")
-  7. streamxpress_start()
-  8. streamxpress_get_status() → 监控播放进度
+  1. connect(host="http://localhost", port=5000)
+  2. scan_ports() → 选择一个 TS-over-IP 端口
+  3. select_port(serial=..., port_num=1)
+  4. set_tsoip_params(dest_ip="239.1.1.1", dest_port=1234, protocol="UDP")
+  5. set_rate(rate_bps=25_000_000)
+  6. open_file(filepath="C:\\Streams\\news.ts")
+  7. start()
+  8. get_status() → 监控播放进度
 ```
 
 ## 许可证
