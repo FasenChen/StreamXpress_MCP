@@ -3,6 +3,8 @@
 from fastmcp import FastMCP
 
 from .client import StreamXpressClient
+from .config import load_config
+from .launcher import launch_streamxpress
 
 # ── FastMCP application ──
 
@@ -225,3 +227,17 @@ def set_asi_params(
     client = get_client()
     client.set_asi_params(remux=remux, playout_rate=playout_rate, tx_mode=tx_mode)
     return {"status": "ok"}
+
+
+# ── Launch tool ──
+
+@mcp.tool()
+def launch() -> dict:
+    """Launch StreamXpress in remote-control mode using config.json settings.
+
+    Reads streamxpress_path and rc_port from the project config.json
+    (see config.example.json), starts StreamXpress with `-rc <port>`, and
+    probes the port until the RC service is ready. Returns pid, port and
+    readiness; use the returned port with streamxpress_connect.
+    """
+    return launch_streamxpress(load_config())

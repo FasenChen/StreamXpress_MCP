@@ -257,7 +257,7 @@ class TestServerParamTools:
 EXPECTED_TOOL_NAMES = {
     "connect", "disconnect", "scan_ports", "select_port", "open_file",
     "start", "stop", "get_status", "set_rate", "set_tsoip_params",
-    "set_rf_params", "set_asi_params",
+    "set_rf_params", "set_asi_params", "launch",
 }
 
 
@@ -277,3 +277,15 @@ class TestToolNaming:
         assert not any(n.startswith("streamxpress_") for n in names), (
             f"工具名仍带前缀: {sorted(n for n in names if n.startswith('streamxpress_'))}"
         )
+
+
+class TestLaunchTool:
+    @patch("streamxpress_mcp.server.launch_streamxpress")
+    def test_launch_tool_returns_launcher_result(self, mock_launch):
+        mock_launch.return_value = {"ok": True, "pid": 12345, "port": 5000, "ready": True}
+
+        from streamxpress_mcp.server import launch
+
+        result = launch()
+        assert result == {"ok": True, "pid": 12345, "port": 5000, "ready": True}
+        assert mock_launch.call_count == 1
