@@ -271,7 +271,9 @@ class TestToolNaming:
 
         tools = asyncio.run(mcp.list_tools())
         names = {t.name for t in tools}
-        assert EXPECTED_TOOL_NAMES <= names, f"缺少工具: {EXPECTED_TOOL_NAMES - names}"
+        assert names == EXPECTED_TOOL_NAMES, (
+            f"工具名不匹配: 期望 {sorted(EXPECTED_TOOL_NAMES)}, 实际 {sorted(names)}"
+        )
         assert not any(n.startswith("streamxpress_") for n in names), (
             f"工具名仍带前缀: {sorted(n for n in names if n.startswith('streamxpress_'))}"
         )

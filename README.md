@@ -53,6 +53,8 @@ python -m streamxpress_mcp
 ## 可用工具
 
 > 工具注册名如左（不带前缀）。MCP 客户端（WorkBuddy、Claude Desktop 等）通常会在工具名前加上 MCP server 名前缀，例如 `connect` 在客户端中显示为 `streamxpress_connect`。
+>
+> 这是破坏性变更：工具名已从 `streamxpress_connect` 等改为无前缀的 `connect` 等。升级后请在各 MCP 客户端（WorkBuddy、Claude Desktop 等）重新连接/重启会话以刷新工具列表，旧名不再注册。
 
 | 工具 | 说明 |
 |---|---|
@@ -83,6 +85,8 @@ AI 依次调用:
   6. open_file(filepath="C:\\Streams\\news.ts")
   7. start()
   8. get_status() → 监控播放进度
+  9. stop()
+  10. disconnect()
 ```
 
 ## 许可证
