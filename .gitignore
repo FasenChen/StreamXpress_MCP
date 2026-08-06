@@ -6,4 +6,5 @@ venv/
 *.egg-info/
 dist/
 .pytest_cache/
-*.wsdl      # Temporary WSDL files generated at runtime
+# Temporary WSDL files generated at runtime
+*.wsdl
