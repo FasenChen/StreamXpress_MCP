@@ -1,0 +1,2559 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions name="SpRc"
+ targetNamespace="urn:SpRc"
+ xmlns:tns="urn:SpRc"
+ xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/"
+ xmlns:SOAP-ENC="http://schemas.xmlsoap.org/soap/encoding/"
+ xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+ xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+ xmlns:SpRc="urn:SpRc"
+ xmlns:SOAP="http://schemas.xmlsoap.org/wsdl/soap/"
+ xmlns:MIME="http://schemas.xmlsoap.org/wsdl/mime/"
+ xmlns:DIME="http://schemas.xmlsoap.org/ws/2002/04/dime/wsdl/"
+ xmlns:WSDL="http://schemas.xmlsoap.org/wsdl/"
+ xmlns="http://schemas.xmlsoap.org/wsdl/">
+
+<types>
+
+ <schema targetNamespace="urn:SpRc"
+  xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/"
+  xmlns:SOAP-ENC="http://schemas.xmlsoap.org/soap/encoding/"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+  xmlns:SpRc="urn:SpRc"
+  xmlns="http://www.w3.org/2001/XMLSchema"
+  elementFormDefault="qualified"
+  attributeFormDefault="unqualified">
+  <import namespace="http://schemas.xmlsoap.org/soap/encoding/"/>
+  <simpleType name="CmPathType">
+   <restriction base="xsd:string">
+    <enumeration value="CONSTANT-DELAY"/><!-- enum const = 0 -->
+    <enumeration value="CONSTANT-DOPPLER"/><!-- enum const = 1 -->
+    <enumeration value="RAYLEIGH-JAKES"/><!-- enum const = 2 -->
+    <enumeration value="RAYLEIGH-GAUSSIAN"/><!-- enum const = 3 -->
+   </restriction>
+  </simpleType>
+  <simpleType name="UnsignedByteArray">
+   <restriction base="xsd:base64Binary">
+   </restriction>
+  </simpleType>
+  <complexType name="UnsignedShortArray">
+   <sequence>
+    <element name="item" type="xsd:unsignedShort" minOccurs="0" maxOccurs="unbounded" nillable="true"/>
+   </sequence>
+  </complexType>
+  <complexType name="PortDesc">
+   <sequence>
+     <element name="Serial" type="xsd:long" minOccurs="1" maxOccurs="1"/>
+     <element name="TypeNumber" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="Ip" type="SpRc:UnsignedByteArray" minOccurs="1" maxOccurs="1" nillable="false"/>
+     <element name="Mac" type="SpRc:UnsignedByteArray" minOccurs="1" maxOccurs="1" nillable="false"/>
+     <element name="FirmwareVersion" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="FirmwareVariant" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="Port" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="OutputType" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="Capabilities" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="InUse" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+   </sequence>
+  </complexType>
+  <complexType name="PortDescArray">
+   <sequence>
+    <element name="item" type="SpRc:PortDesc" minOccurs="0" maxOccurs="unbounded" nillable="true"/>
+   </sequence>
+  </complexType>
+  <complexType name="PlayoutInfo">
+   <sequence>
+     <element name="BurstMode" type="xsd:boolean" minOccurs="1" maxOccurs="1"/>
+     <element name="ExtClock" type="xsd:boolean" minOccurs="1" maxOccurs="1"/>
+     <element name="FileCanBeRead" type="xsd:boolean" minOccurs="1" maxOccurs="1"/>
+     <element name="Filename" type="xsd:string" minOccurs="0" maxOccurs="1" nillable="true"/>
+     <element name="FileOffsetEnd" type="xsd:long" minOccurs="1" maxOccurs="1"/>
+     <element name="FileOffsetStart" type="xsd:long" minOccurs="1" maxOccurs="1"/>
+     <element name="FilePlayedBytes" type="xsd:long" minOccurs="1" maxOccurs="1"/>
+     <element name="FileRateEst" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="FileSize" type="xsd:long" minOccurs="1" maxOccurs="1"/>
+     <element name="FileType" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="LoopBeginRel" type="xsd:double" minOccurs="1" maxOccurs="1"/>
+     <element name="LoopEndRel" type="xsd:double" minOccurs="1" maxOccurs="1"/>
+     <element name="LoopFlags" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="PlayoutState" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="PlayoutRate" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="Remux" type="xsd:boolean" minOccurs="1" maxOccurs="1"/>
+     <element name="SymRate" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="TimeLoopBegin" type="xsd:double" minOccurs="1" maxOccurs="1"/>
+     <element name="TimeLoopEnd" type="xsd:double" minOccurs="1" maxOccurs="1"/>
+     <element name="TimeOffset" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="TsRate" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="TpSize" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="TxPolarity" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+   </sequence>
+  </complexType>
+  <complexType name="SubLoopPars">
+   <sequence>
+     <element name="UseSubLoop" type="xsd:boolean" minOccurs="1" maxOccurs="1"/>
+     <element name="LoopBeginRel" type="xsd:double" minOccurs="1" maxOccurs="1"/>
+     <element name="LoopEndRel" type="xsd:double" minOccurs="1" maxOccurs="1"/>
+   </sequence>
+  </complexType>
+  <complexType name="PlayoutStatus">
+   <sequence>
+     <element name="FifoLoad" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="NumErrors" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="NumWraps" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="PosRel" type="xsd:double" minOccurs="1" maxOccurs="1"/>
+     <element name="TotalMemLoad" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+   </sequence>
+  </complexType>
+  <complexType name="SfnStatus">
+   <sequence>
+     <element name="GpsStatus" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="GpsTime" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="SfnMode" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="SfnStatus" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+   </sequence>
+  </complexType>
+  <complexType name="AsiPars">
+   <sequence>
+     <element name="Remux" type="xsd:boolean" minOccurs="1" maxOccurs="1"/>
+     <element name="PlayoutRate" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="BurstMode" type="xsd:boolean" minOccurs="1" maxOccurs="1"/>
+     <element name="TxMode" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="Polarity" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+   </sequence>
+  </complexType>
+  <complexType name="HwNoisePars">
+   <sequence>
+     <element name="SnrOn" type="xsd:boolean" minOccurs="1" maxOccurs="1"/>
+     <element name="Snr" type="xsd:double" minOccurs="1" maxOccurs="1"/>
+   </sequence>
+  </complexType>
+  <complexType name="CmPath">
+   <sequence>
+     <element name="Type" type="SpRc:CmPathType" minOccurs="1" maxOccurs="1"/>
+     <element name="Attenuation" type="xsd:double" minOccurs="1" maxOccurs="1"/>
+     <element name="Delay" type="xsd:double" minOccurs="1" maxOccurs="1"/>
+     <element name="Phase" type="xsd:double" minOccurs="1" maxOccurs="1"/>
+     <element name="Doppler" type="xsd:double" minOccurs="1" maxOccurs="1"/>
+   </sequence>
+  </complexType>
+  <complexType name="CmPathArray">
+   <sequence>
+    <element name="item" type="SpRc:CmPath" minOccurs="0" maxOccurs="unbounded" nillable="true"/>
+   </sequence>
+  </complexType>
+  <complexType name="CmPars">
+   <sequence>
+     <element name="CmEnable" type="xsd:boolean" minOccurs="1" maxOccurs="1"/>
+     <element name="AwgnEnable" type="xsd:boolean" minOccurs="1" maxOccurs="1"/>
+     <element name="PathsEnable" type="xsd:boolean" minOccurs="1" maxOccurs="1"/>
+     <element name="Snr" type="xsd:double" minOccurs="1" maxOccurs="1"/>
+     <element name="Paths" type="SpRc:CmPathArray" minOccurs="1" maxOccurs="1" nillable="false"/>
+   </sequence>
+  </complexType>
+  <complexType name="CmmbPars">
+   <sequence>
+     <element name="Bandwidth" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="AreaId" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="TxId" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+   </sequence>
+  </complexType>
+  <complexType name="DvbT2Group">
+   <sequence>
+     <element name="GroupName" type="xsd:string" minOccurs="0" maxOccurs="1" nillable="true"/>
+     <element name="GroupRefName" type="xsd:string" minOccurs="0" maxOccurs="1" nillable="true"/>
+   </sequence>
+  </complexType>
+  <complexType name="DvbT2Pars">
+   <sequence>
+     <element name="T2Version" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="Bandwidth" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="FftMode" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="Miso" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="GuardInterval" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="Papr" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="BwtExt" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="PilotPattern" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="NumT2Frames" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="NumDataSyms" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="L1Modulation" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="FefEnable" type="xsd:boolean" minOccurs="1" maxOccurs="1"/>
+     <element name="FefType" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="FefLength" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="FefS1" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="FefS2" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="FefInterval" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="FefSignal" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="CellId" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="NetworkId" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="T2SystemId" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="Frequency" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="Hem" type="xsd:boolean" minOccurs="1" maxOccurs="1"/>
+     <element name="Npd" type="xsd:boolean" minOccurs="1" maxOccurs="1"/>
+     <element name="IssyEnabled" type="xsd:boolean" minOccurs="1" maxOccurs="1"/>
+     <element name="Id" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="GroupId" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="Type" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="CodeRate" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="Modulation" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="Rotation" type="xsd:boolean" minOccurs="1" maxOccurs="1"/>
+     <element name="FecType" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="TimeIlLength" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="TimeIlType" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="InBandFlag" type="xsd:boolean" minOccurs="1" maxOccurs="1"/>
+     <element name="NumBlocks" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="FollowMode" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+   </sequence>
+  </complexType>
+  <complexType name="IsdbtLayerPars">
+   <sequence>
+     <element name="NumSegments" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="Modulation" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="CodeRate" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="TimeInterleave" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+   </sequence>
+  </complexType>
+  <complexType name="Pid2Layer">
+   <sequence>
+     <element name="Pid" type="xsd:unsignedShort" minOccurs="1" maxOccurs="1"/>
+     <element name="Layer" type="xsd:unsignedShort" minOccurs="1" maxOccurs="1"/>
+   </sequence>
+  </complexType>
+  <complexType name="Pid2LayerArray">
+   <sequence>
+    <element name="item" type="SpRc:Pid2Layer" minOccurs="0" maxOccurs="unbounded" nillable="true"/>
+   </sequence>
+  </complexType>
+  <complexType name="IsdbtLayerParsArray">
+   <sequence>
+    <element name="item" type="SpRc:IsdbtLayerPars" minOccurs="0" maxOccurs="unbounded" nillable="true"/>
+   </sequence>
+  </complexType>
+  <complexType name="IsdbtPars">
+   <sequence>
+     <element name="DoMux" type="xsd:boolean" minOccurs="1" maxOccurs="1"/>
+     <element name="BType" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="Mode" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="Guard" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="PartialRx" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="Emergency" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="IipPid" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="LayerPars" type="SpRc:IsdbtLayerParsArray" minOccurs="1" maxOccurs="1" nillable="false"/>
+     <element name="Pid2Layer" type="SpRc:Pid2LayerArray" minOccurs="1" maxOccurs="1" nillable="false"/>
+     <element name="LayerOther" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="ParXtra0" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="Virtual13Segm" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+   </sequence>
+  </complexType>
+  <complexType name="ModPars">
+   <sequence>
+     <element name="ModType" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="ParXtra0" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="ParXtra1" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="ParXtra2" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="SymRate" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+   </sequence>
+  </complexType>
+  <complexType name="RemuxPars">
+   <sequence>
+     <element name="Remux" type="xsd:boolean" minOccurs="1" maxOccurs="1"/>
+   </sequence>
+  </complexType>
+  <complexType name="RfPars">
+   <sequence>
+     <element name="Frequency" type="xsd:long" minOccurs="1" maxOccurs="1"/>
+     <element name="Level" type="xsd:double" minOccurs="1" maxOccurs="1"/>
+     <element name="SpecInv" type="xsd:boolean" minOccurs="1" maxOccurs="1"/>
+     <element name="CW" type="xsd:boolean" minOccurs="1" maxOccurs="1"/>
+     <element name="RfEnabledOnStop" type="xsd:boolean" minOccurs="1" maxOccurs="1"/>
+   </sequence>
+  </complexType>
+  <complexType name="SpiPars">
+   <sequence>
+     <element name="Remux" type="xsd:boolean" minOccurs="1" maxOccurs="1"/>
+     <element name="PlayoutRate" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="TxMode" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="Power" type="xsd:boolean" minOccurs="1" maxOccurs="1"/>
+   </sequence>
+  </complexType>
+  <complexType name="DateTime">
+   <sequence>
+     <element name="Year" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="Month" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="Day" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="Hour" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="Minute" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="Second" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+   </sequence>
+  </complexType>
+  <complexType name="TdtAdaptPars">
+   <sequence>
+     <element name="TdtAdaptMode" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="TdtDateTime" type="SpRc:DateTime" minOccurs="1" maxOccurs="1"/>
+   </sequence>
+  </complexType>
+  <complexType name="TsgPars">
+   <sequence>
+     <element name="Type" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="Pid" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="VidStd" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="Flags" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+   </sequence>
+  </complexType>
+  <complexType name="TsoipPars">
+   <sequence>
+     <element name="TxMode" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="Ip" type="SpRc:UnsignedByteArray" minOccurs="1" maxOccurs="1" nillable="false"/>
+     <element name="Port" type="xsd:unsignedShort" minOccurs="1" maxOccurs="1"/>
+     <element name="Ip2" type="SpRc:UnsignedByteArray" minOccurs="1" maxOccurs="1" nillable="false"/>
+     <element name="Port2" type="xsd:unsignedShort" minOccurs="1" maxOccurs="1"/>
+     <element name="EnaFailover" type="xsd:boolean" minOccurs="1" maxOccurs="1"/>
+     <element name="TimeToLive" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="NumTpPerIp" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="Protocol" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="DiffServ" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="FecMode" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="FecNumRows" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="FecNumCols" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+   </sequence>
+  </complexType>
+  <complexType name="PlayoutSfnPars">
+   <sequence>
+     <element name="PlayoutState" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="SfnStartTime" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+   </sequence>
+  </complexType>
+  <!-- operation request element -->
+  <element name="OpenSession">
+   <complexType>
+    <sequence>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="OpenSessionResponse">
+   <complexType>
+    <sequence>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="CloseSession">
+   <complexType>
+    <sequence>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="CloseSessionResponse">
+   <complexType>
+    <sequence>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="GetAppInfo">
+   <complexType>
+    <sequence>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="GetAppInfoResponse">
+   <complexType>
+    <sequence>
+     <element name="AppName" type="xsd:string" minOccurs="0" maxOccurs="1" nillable="true"/>
+     <element name="MajorVersion" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="MinorVersion" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="BugFixVersion" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="BuildNumber" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="GetRemoteVersion">
+   <complexType>
+    <sequence>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="GetRemoteVersionResponse">
+   <complexType>
+    <sequence>
+     <element name="MajorVersion" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="MinorVersion" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="BugFixVersion" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="BuildNumber" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="GetRemoteDtapiVersion">
+   <complexType>
+    <sequence>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="GetRemoteDtapiVersionResponse">
+   <complexType>
+    <sequence>
+     <element name="MajorVersion" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="MinorVersion" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="BugFixVersion" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="BuildNumber" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="ScanPorts">
+   <complexType>
+    <sequence>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="ScanPortsResponse">
+   <complexType>
+    <sequence>
+     <element name="PortDescs" type="SpRc:PortDescArray" minOccurs="1" maxOccurs="1" nillable="false"/>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="SelectPort">
+   <complexType>
+    <sequence>
+     <element name="Serial" type="xsd:long" minOccurs="1" maxOccurs="1"/>
+     <element name="PortNr" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="Modulation" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="SelectPortResponse">
+   <complexType>
+    <sequence>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+     <element name="Status" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="SelectDtaPlus">
+   <complexType>
+    <sequence>
+     <element name="UseDtaPlus" type="xsd:boolean" minOccurs="1" maxOccurs="1"/>
+     <element name="Serial" type="xsd:long" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="SelectDtaPlusResponse">
+   <complexType>
+    <sequence>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+     <element name="Status" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="ClearErrors">
+   <complexType>
+    <sequence>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="ClearErrorsResponse">
+   <complexType>
+    <sequence>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="GetPlayoutInfo">
+   <complexType>
+    <sequence>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="GetPlayoutInfoResponse">
+   <complexType>
+    <sequence>
+     <element name="PlayoutInfo" type="SpRc:PlayoutInfo" minOccurs="1" maxOccurs="1"/>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="SetSubLoopPars">
+   <complexType>
+    <sequence>
+     <element name="SubLoopPars" type="SpRc:SubLoopPars" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="SetSubLoopParsResponse">
+   <complexType>
+    <sequence>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="GetPlayoutStatus">
+   <complexType>
+    <sequence>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="GetPlayoutStatusResponse">
+   <complexType>
+    <sequence>
+     <element name="PlayoutStatus" type="SpRc:PlayoutStatus" minOccurs="1" maxOccurs="1"/>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="GetSfnStatus">
+   <complexType>
+    <sequence>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="GetSfnStatusResponse">
+   <complexType>
+    <sequence>
+     <element name="SfnStatus" type="SpRc:SfnStatus" minOccurs="1" maxOccurs="1"/>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="Normalise">
+   <complexType>
+    <sequence>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="NormaliseResponse">
+   <complexType>
+    <sequence>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="OpenChannelModellingFile">
+   <complexType>
+    <sequence>
+     <element name="Filename" type="xsd:string" minOccurs="0" maxOccurs="1" nillable="true"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="OpenChannelModellingFileResponse">
+   <complexType>
+    <sequence>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="OpenFile">
+   <complexType>
+    <sequence>
+     <element name="Filename" type="xsd:string" minOccurs="0" maxOccurs="1" nillable="true"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="OpenFileResponse">
+   <complexType>
+    <sequence>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="SaveChannelModellingSettings">
+   <complexType>
+    <sequence>
+     <element name="Filename" type="xsd:string" minOccurs="0" maxOccurs="1" nillable="true"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="SaveChannelModellingSettingsResponse">
+   <complexType>
+    <sequence>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="SaveSettings">
+   <complexType>
+    <sequence>
+     <element name="Filename" type="xsd:string" minOccurs="0" maxOccurs="1" nillable="true"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="SaveSettingsResponse">
+   <complexType>
+    <sequence>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="GetAsiPars">
+   <complexType>
+    <sequence>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="GetAsiParsResponse">
+   <complexType>
+    <sequence>
+     <element name="AsiPars" type="SpRc:AsiPars" minOccurs="1" maxOccurs="1"/>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="SetAsiPars">
+   <complexType>
+    <sequence>
+     <element name="AsiPars" type="SpRc:AsiPars" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="SetAsiParsResponse">
+   <complexType>
+    <sequence>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="SetHwNoisePars">
+   <complexType>
+    <sequence>
+     <element name="HwNoisePars" type="SpRc:HwNoisePars" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="SetHwNoiseParsResponse">
+   <complexType>
+    <sequence>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="GetHwNoisePars">
+   <complexType>
+    <sequence>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="GetHwNoiseParsResponse">
+   <complexType>
+    <sequence>
+     <element name="HwNoisePars" type="SpRc:HwNoisePars" minOccurs="1" maxOccurs="1"/>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="GetIqGain">
+   <complexType>
+    <sequence>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="GetIqGainResponse">
+   <complexType>
+    <sequence>
+     <element name="IqGain" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="SetIqGain">
+   <complexType>
+    <sequence>
+     <element name="IqGain" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="SetIqGainResponse">
+   <complexType>
+    <sequence>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="GetChannelModellingPars">
+   <complexType>
+    <sequence>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="GetChannelModellingParsResponse">
+   <complexType>
+    <sequence>
+     <element name="CmPars" type="SpRc:CmPars" minOccurs="1" maxOccurs="1"/>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="SetChannelModellingPars">
+   <complexType>
+    <sequence>
+     <element name="CmPars" type="SpRc:CmPars" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="SetChannelModellingParsResponse">
+   <complexType>
+    <sequence>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="GetCmmbPars">
+   <complexType>
+    <sequence>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="GetCmmbParsResponse">
+   <complexType>
+    <sequence>
+     <element name="CmmbPars" type="SpRc:CmmbPars" minOccurs="1" maxOccurs="1"/>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="SetCmmbPars">
+   <complexType>
+    <sequence>
+     <element name="CmmbPars" type="SpRc:CmmbPars" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="SetCmmbParsResponse">
+   <complexType>
+    <sequence>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="GetSignalSource">
+   <complexType>
+    <sequence>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="GetSignalSourceResponse">
+   <complexType>
+    <sequence>
+     <element name="SignalSource" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="SetSignalSource">
+   <complexType>
+    <sequence>
+     <element name="SignalSource" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="SetSignalSourceResponse">
+   <complexType>
+    <sequence>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="GetDvbT2Group">
+   <complexType>
+    <sequence>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="GetDvbT2GroupResponse">
+   <complexType>
+    <sequence>
+     <element name="DvbT2Group" type="SpRc:DvbT2Group" minOccurs="1" maxOccurs="1"/>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="SetDvbT2Group">
+   <complexType>
+    <sequence>
+     <element name="DvbT2Group" type="SpRc:DvbT2Group" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="SetDvbT2GroupResponse">
+   <complexType>
+    <sequence>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="GetDvbT2Pars">
+   <complexType>
+    <sequence>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="GetDvbT2ParsResponse">
+   <complexType>
+    <sequence>
+     <element name="DvbT2Pars" type="SpRc:DvbT2Pars" minOccurs="1" maxOccurs="1"/>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="SetDvbT2Pars">
+   <complexType>
+    <sequence>
+     <element name="DvbT2Pars" type="SpRc:DvbT2Pars" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="SetDvbT2ParsResponse">
+   <complexType>
+    <sequence>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="GetIsdbtPars">
+   <complexType>
+    <sequence>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="GetIsdbtParsResponse">
+   <complexType>
+    <sequence>
+     <element name="IsdbtPars" type="SpRc:IsdbtPars" minOccurs="1" maxOccurs="1"/>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="SetIsdbtPars">
+   <complexType>
+    <sequence>
+     <element name="IsdbtPars" type="SpRc:IsdbtPars" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="SetIsdbtParsResponse">
+   <complexType>
+    <sequence>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="GetModPars">
+   <complexType>
+    <sequence>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="GetModParsResponse">
+   <complexType>
+    <sequence>
+     <element name="ModPars" type="SpRc:ModPars" minOccurs="1" maxOccurs="1"/>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="SetModPars">
+   <complexType>
+    <sequence>
+     <element name="ModPars" type="SpRc:ModPars" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="SetModParsResponse">
+   <complexType>
+    <sequence>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="SetRemux">
+   <complexType>
+    <sequence>
+     <element name="Remux" type="SpRc:RemuxPars" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="SetRemuxResponse">
+   <complexType>
+    <sequence>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="GetRfPars">
+   <complexType>
+    <sequence>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="GetRfParsResponse">
+   <complexType>
+    <sequence>
+     <element name="RfPars" type="SpRc:RfPars" minOccurs="1" maxOccurs="1"/>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="SetRfPars">
+   <complexType>
+    <sequence>
+     <element name="RfPars" type="SpRc:RfPars" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="SetRfParsResponse">
+   <complexType>
+    <sequence>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="SetSfnMode">
+   <complexType>
+    <sequence>
+     <element name="SfnMode" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="SetSfnModeResponse">
+   <complexType>
+    <sequence>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="GetSpiPars">
+   <complexType>
+    <sequence>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="GetSpiParsResponse">
+   <complexType>
+    <sequence>
+     <element name="SpiPars" type="SpRc:SpiPars" minOccurs="1" maxOccurs="1"/>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="SetSpiPars">
+   <complexType>
+    <sequence>
+     <element name="SpiPars" type="SpRc:SpiPars" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="SetSpiParsResponse">
+   <complexType>
+    <sequence>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="GetTdtAdaptPars">
+   <complexType>
+    <sequence>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="GetTdtAdaptParsResponse">
+   <complexType>
+    <sequence>
+     <element name="TdtAdaptPars" type="SpRc:TdtAdaptPars" minOccurs="1" maxOccurs="1"/>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="SetTdtAdaptPars">
+   <complexType>
+    <sequence>
+     <element name="TdtAdaptPars" type="SpRc:TdtAdaptPars" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="SetTdtAdaptParsResponse">
+   <complexType>
+    <sequence>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="GetTsgPars">
+   <complexType>
+    <sequence>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="GetTsgParsResponse">
+   <complexType>
+    <sequence>
+     <element name="TsgPars" type="SpRc:TsgPars" minOccurs="1" maxOccurs="1"/>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="SetTsgPars">
+   <complexType>
+    <sequence>
+     <element name="TsgPars" type="SpRc:TsgPars" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="SetTsgParsResponse">
+   <complexType>
+    <sequence>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="GetTsoipPars">
+   <complexType>
+    <sequence>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="GetTsoipParsResponse">
+   <complexType>
+    <sequence>
+     <element name="TsoipPars" type="SpRc:TsoipPars" minOccurs="1" maxOccurs="1"/>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="SetTsoipPars">
+   <complexType>
+    <sequence>
+     <element name="TsoipPars" type="SpRc:TsoipPars" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="SetTsoipParsResponse">
+   <complexType>
+    <sequence>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="GetUseNit">
+   <complexType>
+    <sequence>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="GetUseNitResponse">
+   <complexType>
+    <sequence>
+     <element name="UseNit" type="xsd:boolean" minOccurs="1" maxOccurs="1"/>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="SetUseNit">
+   <complexType>
+    <sequence>
+     <element name="UseNit" type="xsd:boolean" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="SetUseNitResponse">
+   <complexType>
+    <sequence>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="SetLoopFlags">
+   <complexType>
+    <sequence>
+     <element name="LoopFlags" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="SetLoopFlagsResponse">
+   <complexType>
+    <sequence>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="SetPlayoutState">
+   <complexType>
+    <sequence>
+     <element name="PlayoutState" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="SetPlayoutStateResponse">
+   <complexType>
+    <sequence>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="SetPlayoutStateSfn">
+   <complexType>
+    <sequence>
+     <element name="PlayoutSfnPars" type="SpRc:PlayoutSfnPars" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="SetPlayoutStateSfnResponse">
+   <complexType>
+    <sequence>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="SetTsRate">
+   <complexType>
+    <sequence>
+     <element name="TsRate" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="SetTsRateResponse">
+   <complexType>
+    <sequence>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="WaitForCondition">
+   <complexType>
+    <sequence>
+     <element name="Condition" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+     <element name="TimeOut" type="xsd:int" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="WaitForConditionResponse">
+   <complexType>
+    <sequence>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation request element -->
+  <element name="ShowWindow">
+   <complexType>
+    <sequence>
+     <element name="Show" type="xsd:boolean" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+  <!-- operation response element -->
+  <element name="ShowWindowResponse">
+   <complexType>
+    <sequence>
+     <element name="SpRcResult" type="xsd:unsignedInt" minOccurs="1" maxOccurs="1"/>
+    </sequence>
+   </complexType>
+  </element>
+ </schema>
+
+</types>
+
+<message name="OpenSession">
+ <part name="parameters" element="SpRc:OpenSession"/>
+</message>
+
+<message name="OpenSessionResponse">
+ <part name="parameters" element="SpRc:OpenSessionResponse"/>
+</message>
+
+<message name="CloseSession">
+ <part name="parameters" element="SpRc:CloseSession"/>
+</message>
+
+<message name="CloseSessionResponse">
+ <part name="parameters" element="SpRc:CloseSessionResponse"/>
+</message>
+
+<message name="GetAppInfo">
+ <part name="parameters" element="SpRc:GetAppInfo"/>
+</message>
+
+<message name="GetAppInfoResponse">
+ <part name="parameters" element="SpRc:GetAppInfoResponse"/>
+</message>
+
+<message name="GetRemoteVersion">
+ <part name="parameters" element="SpRc:GetRemoteVersion"/>
+</message>
+
+<message name="GetRemoteVersionResponse">
+ <part name="parameters" element="SpRc:GetRemoteVersionResponse"/>
+</message>
+
+<message name="GetRemoteDtapiVersion">
+ <part name="parameters" element="SpRc:GetRemoteDtapiVersion"/>
+</message>
+
+<message name="GetRemoteDtapiVersionResponse">
+ <part name="parameters" element="SpRc:GetRemoteDtapiVersionResponse"/>
+</message>
+
+<message name="ScanPorts">
+ <part name="parameters" element="SpRc:ScanPorts"/>
+</message>
+
+<message name="ScanPortsResponse">
+ <part name="parameters" element="SpRc:ScanPortsResponse"/>
+</message>
+
+<message name="SelectPort">
+ <part name="parameters" element="SpRc:SelectPort"/>
+</message>
+
+<message name="SelectPortResponse">
+ <part name="parameters" element="SpRc:SelectPortResponse"/>
+</message>
+
+<message name="SelectDtaPlus">
+ <part name="parameters" element="SpRc:SelectDtaPlus"/>
+</message>
+
+<message name="SelectDtaPlusResponse">
+ <part name="parameters" element="SpRc:SelectDtaPlusResponse"/>
+</message>
+
+<message name="ClearErrors">
+ <part name="parameters" element="SpRc:ClearErrors"/>
+</message>
+
+<message name="ClearErrorsResponse">
+ <part name="parameters" element="SpRc:ClearErrorsResponse"/>
+</message>
+
+<message name="GetPlayoutInfo">
+ <part name="parameters" element="SpRc:GetPlayoutInfo"/>
+</message>
+
+<message name="GetPlayoutInfoResponse">
+ <part name="parameters" element="SpRc:GetPlayoutInfoResponse"/>
+</message>
+
+<message name="SetSubLoopPars">
+ <part name="parameters" element="SpRc:SetSubLoopPars"/>
+</message>
+
+<message name="SetSubLoopParsResponse">
+ <part name="parameters" element="SpRc:SetSubLoopParsResponse"/>
+</message>
+
+<message name="GetPlayoutStatus">
+ <part name="parameters" element="SpRc:GetPlayoutStatus"/>
+</message>
+
+<message name="GetPlayoutStatusResponse">
+ <part name="parameters" element="SpRc:GetPlayoutStatusResponse"/>
+</message>
+
+<message name="GetSfnStatus">
+ <part name="parameters" element="SpRc:GetSfnStatus"/>
+</message>
+
+<message name="GetSfnStatusResponse">
+ <part name="parameters" element="SpRc:GetSfnStatusResponse"/>
+</message>
+
+<message name="Normalise">
+ <part name="parameters" element="SpRc:Normalise"/>
+</message>
+
+<message name="NormaliseResponse">
+ <part name="parameters" element="SpRc:NormaliseResponse"/>
+</message>
+
+<message name="OpenChannelModellingFile">
+ <part name="parameters" element="SpRc:OpenChannelModellingFile"/>
+</message>
+
+<message name="OpenChannelModellingFileResponse">
+ <part name="parameters" element="SpRc:OpenChannelModellingFileResponse"/>
+</message>
+
+<message name="OpenFile">
+ <part name="parameters" element="SpRc:OpenFile"/>
+</message>
+
+<message name="OpenFileResponse">
+ <part name="parameters" element="SpRc:OpenFileResponse"/>
+</message>
+
+<message name="SaveChannelModellingSettings">
+ <part name="parameters" element="SpRc:SaveChannelModellingSettings"/>
+</message>
+
+<message name="SaveChannelModellingSettingsResponse">
+ <part name="parameters" element="SpRc:SaveChannelModellingSettingsResponse"/>
+</message>
+
+<message name="SaveSettings">
+ <part name="parameters" element="SpRc:SaveSettings"/>
+</message>
+
+<message name="SaveSettingsResponse">
+ <part name="parameters" element="SpRc:SaveSettingsResponse"/>
+</message>
+
+<message name="GetAsiPars">
+ <part name="parameters" element="SpRc:GetAsiPars"/>
+</message>
+
+<message name="GetAsiParsResponse">
+ <part name="parameters" element="SpRc:GetAsiParsResponse"/>
+</message>
+
+<message name="SetAsiPars">
+ <part name="parameters" element="SpRc:SetAsiPars"/>
+</message>
+
+<message name="SetAsiParsResponse">
+ <part name="parameters" element="SpRc:SetAsiParsResponse"/>
+</message>
+
+<message name="SetHwNoisePars">
+ <part name="parameters" element="SpRc:SetHwNoisePars"/>
+</message>
+
+<message name="SetHwNoiseParsResponse">
+ <part name="parameters" element="SpRc:SetHwNoiseParsResponse"/>
+</message>
+
+<message name="GetHwNoisePars">
+ <part name="parameters" element="SpRc:GetHwNoisePars"/>
+</message>
+
+<message name="GetHwNoiseParsResponse">
+ <part name="parameters" element="SpRc:GetHwNoiseParsResponse"/>
+</message>
+
+<message name="GetIqGain">
+ <part name="parameters" element="SpRc:GetIqGain"/>
+</message>
+
+<message name="GetIqGainResponse">
+ <part name="parameters" element="SpRc:GetIqGainResponse"/>
+</message>
+
+<message name="SetIqGain">
+ <part name="parameters" element="SpRc:SetIqGain"/>
+</message>
+
+<message name="SetIqGainResponse">
+ <part name="parameters" element="SpRc:SetIqGainResponse"/>
+</message>
+
+<message name="GetChannelModellingPars">
+ <part name="parameters" element="SpRc:GetChannelModellingPars"/>
+</message>
+
+<message name="GetChannelModellingParsResponse">
+ <part name="parameters" element="SpRc:GetChannelModellingParsResponse"/>
+</message>
+
+<message name="SetChannelModellingPars">
+ <part name="parameters" element="SpRc:SetChannelModellingPars"/>
+</message>
+
+<message name="SetChannelModellingParsResponse">
+ <part name="parameters" element="SpRc:SetChannelModellingParsResponse"/>
+</message>
+
+<message name="GetCmmbPars">
+ <part name="parameters" element="SpRc:GetCmmbPars"/>
+</message>
+
+<message name="GetCmmbParsResponse">
+ <part name="parameters" element="SpRc:GetCmmbParsResponse"/>
+</message>
+
+<message name="SetCmmbPars">
+ <part name="parameters" element="SpRc:SetCmmbPars"/>
+</message>
+
+<message name="SetCmmbParsResponse">
+ <part name="parameters" element="SpRc:SetCmmbParsResponse"/>
+</message>
+
+<message name="GetSignalSource">
+ <part name="parameters" element="SpRc:GetSignalSource"/>
+</message>
+
+<message name="GetSignalSourceResponse">
+ <part name="parameters" element="SpRc:GetSignalSourceResponse"/>
+</message>
+
+<message name="SetSignalSource">
+ <part name="parameters" element="SpRc:SetSignalSource"/>
+</message>
+
+<message name="SetSignalSourceResponse">
+ <part name="parameters" element="SpRc:SetSignalSourceResponse"/>
+</message>
+
+<message name="GetDvbT2Group">
+ <part name="parameters" element="SpRc:GetDvbT2Group"/>
+</message>
+
+<message name="GetDvbT2GroupResponse">
+ <part name="parameters" element="SpRc:GetDvbT2GroupResponse"/>
+</message>
+
+<message name="SetDvbT2Group">
+ <part name="parameters" element="SpRc:SetDvbT2Group"/>
+</message>
+
+<message name="SetDvbT2GroupResponse">
+ <part name="parameters" element="SpRc:SetDvbT2GroupResponse"/>
+</message>
+
+<message name="GetDvbT2Pars">
+ <part name="parameters" element="SpRc:GetDvbT2Pars"/>
+</message>
+
+<message name="GetDvbT2ParsResponse">
+ <part name="parameters" element="SpRc:GetDvbT2ParsResponse"/>
+</message>
+
+<message name="SetDvbT2Pars">
+ <part name="parameters" element="SpRc:SetDvbT2Pars"/>
+</message>
+
+<message name="SetDvbT2ParsResponse">
+ <part name="parameters" element="SpRc:SetDvbT2ParsResponse"/>
+</message>
+
+<message name="GetIsdbtPars">
+ <part name="parameters" element="SpRc:GetIsdbtPars"/>
+</message>
+
+<message name="GetIsdbtParsResponse">
+ <part name="parameters" element="SpRc:GetIsdbtParsResponse"/>
+</message>
+
+<message name="SetIsdbtPars">
+ <part name="parameters" element="SpRc:SetIsdbtPars"/>
+</message>
+
+<message name="SetIsdbtParsResponse">
+ <part name="parameters" element="SpRc:SetIsdbtParsResponse"/>
+</message>
+
+<message name="GetModPars">
+ <part name="parameters" element="SpRc:GetModPars"/>
+</message>
+
+<message name="GetModParsResponse">
+ <part name="parameters" element="SpRc:GetModParsResponse"/>
+</message>
+
+<message name="SetModPars">
+ <part name="parameters" element="SpRc:SetModPars"/>
+</message>
+
+<message name="SetModParsResponse">
+ <part name="parameters" element="SpRc:SetModParsResponse"/>
+</message>
+
+<message name="SetRemux">
+ <part name="parameters" element="SpRc:SetRemux"/>
+</message>
+
+<message name="SetRemuxResponse">
+ <part name="parameters" element="SpRc:SetRemuxResponse"/>
+</message>
+
+<message name="GetRfPars">
+ <part name="parameters" element="SpRc:GetRfPars"/>
+</message>
+
+<message name="GetRfParsResponse">
+ <part name="parameters" element="SpRc:GetRfParsResponse"/>
+</message>
+
+<message name="SetRfPars">
+ <part name="parameters" element="SpRc:SetRfPars"/>
+</message>
+
+<message name="SetRfParsResponse">
+ <part name="parameters" element="SpRc:SetRfParsResponse"/>
+</message>
+
+<message name="SetSfnMode">
+ <part name="parameters" element="SpRc:SetSfnMode"/>
+</message>
+
+<message name="SetSfnModeResponse">
+ <part name="parameters" element="SpRc:SetSfnModeResponse"/>
+</message>
+
+<message name="GetSpiPars">
+ <part name="parameters" element="SpRc:GetSpiPars"/>
+</message>
+
+<message name="GetSpiParsResponse">
+ <part name="parameters" element="SpRc:GetSpiParsResponse"/>
+</message>
+
+<message name="SetSpiPars">
+ <part name="parameters" element="SpRc:SetSpiPars"/>
+</message>
+
+<message name="SetSpiParsResponse">
+ <part name="parameters" element="SpRc:SetSpiParsResponse"/>
+</message>
+
+<message name="GetTdtAdaptPars">
+ <part name="parameters" element="SpRc:GetTdtAdaptPars"/>
+</message>
+
+<message name="GetTdtAdaptParsResponse">
+ <part name="parameters" element="SpRc:GetTdtAdaptParsResponse"/>
+</message>
+
+<message name="SetTdtAdaptPars">
+ <part name="parameters" element="SpRc:SetTdtAdaptPars"/>
+</message>
+
+<message name="SetTdtAdaptParsResponse">
+ <part name="parameters" element="SpRc:SetTdtAdaptParsResponse"/>
+</message>
+
+<message name="GetTsgPars">
+ <part name="parameters" element="SpRc:GetTsgPars"/>
+</message>
+
+<message name="GetTsgParsResponse">
+ <part name="parameters" element="SpRc:GetTsgParsResponse"/>
+</message>
+
+<message name="SetTsgPars">
+ <part name="parameters" element="SpRc:SetTsgPars"/>
+</message>
+
+<message name="SetTsgParsResponse">
+ <part name="parameters" element="SpRc:SetTsgParsResponse"/>
+</message>
+
+<message name="GetTsoipPars">
+ <part name="parameters" element="SpRc:GetTsoipPars"/>
+</message>
+
+<message name="GetTsoipParsResponse">
+ <part name="parameters" element="SpRc:GetTsoipParsResponse"/>
+</message>
+
+<message name="SetTsoipPars">
+ <part name="parameters" element="SpRc:SetTsoipPars"/>
+</message>
+
+<message name="SetTsoipParsResponse">
+ <part name="parameters" element="SpRc:SetTsoipParsResponse"/>
+</message>
+
+<message name="GetUseNit">
+ <part name="parameters" element="SpRc:GetUseNit"/>
+</message>
+
+<message name="GetUseNitResponse">
+ <part name="parameters" element="SpRc:GetUseNitResponse"/>
+</message>
+
+<message name="SetUseNit">
+ <part name="parameters" element="SpRc:SetUseNit"/>
+</message>
+
+<message name="SetUseNitResponse">
+ <part name="parameters" element="SpRc:SetUseNitResponse"/>
+</message>
+
+<message name="SetLoopFlags">
+ <part name="parameters" element="SpRc:SetLoopFlags"/>
+</message>
+
+<message name="SetLoopFlagsResponse">
+ <part name="parameters" element="SpRc:SetLoopFlagsResponse"/>
+</message>
+
+<message name="SetPlayoutState">
+ <part name="parameters" element="SpRc:SetPlayoutState"/>
+</message>
+
+<message name="SetPlayoutStateResponse">
+ <part name="parameters" element="SpRc:SetPlayoutStateResponse"/>
+</message>
+
+<message name="SetPlayoutStateSfn">
+ <part name="parameters" element="SpRc:SetPlayoutStateSfn"/>
+</message>
+
+<message name="SetPlayoutStateSfnResponse">
+ <part name="parameters" element="SpRc:SetPlayoutStateSfnResponse"/>
+</message>
+
+<message name="SetTsRate">
+ <part name="parameters" element="SpRc:SetTsRate"/>
+</message>
+
+<message name="SetTsRateResponse">
+ <part name="parameters" element="SpRc:SetTsRateResponse"/>
+</message>
+
+<message name="WaitForCondition">
+ <part name="parameters" element="SpRc:WaitForCondition"/>
+</message>
+
+<message name="WaitForConditionResponse">
+ <part name="parameters" element="SpRc:WaitForConditionResponse"/>
+</message>
+
+<message name="ShowWindow">
+ <part name="parameters" element="SpRc:ShowWindow"/>
+</message>
+
+<message name="ShowWindowResponse">
+ <part name="parameters" element="SpRc:ShowWindowResponse"/>
+</message>
+
+<portType name="SpRcPortType">
+ <operation name="OpenSession">
+  <documentation>Service definition of function SpRc__OpenSession</documentation>
+  <input message="tns:OpenSession"/>
+  <output message="tns:OpenSessionResponse"/>
+ </operation>
+ <operation name="CloseSession">
+  <documentation>Service definition of function SpRc__CloseSession</documentation>
+  <input message="tns:CloseSession"/>
+  <output message="tns:CloseSessionResponse"/>
+ </operation>
+ <operation name="GetAppInfo">
+  <documentation>Service definition of function SpRc__GetAppInfo</documentation>
+  <input message="tns:GetAppInfo"/>
+  <output message="tns:GetAppInfoResponse"/>
+ </operation>
+ <operation name="GetRemoteVersion">
+  <documentation>Service definition of function SpRc__GetRemoteVersion</documentation>
+  <input message="tns:GetRemoteVersion"/>
+  <output message="tns:GetRemoteVersionResponse"/>
+ </operation>
+ <operation name="GetRemoteDtapiVersion">
+  <documentation>Service definition of function SpRc__GetRemoteDtapiVersion</documentation>
+  <input message="tns:GetRemoteDtapiVersion"/>
+  <output message="tns:GetRemoteDtapiVersionResponse"/>
+ </operation>
+ <operation name="ScanPorts">
+  <documentation>Service definition of function SpRc__ScanPorts</documentation>
+  <input message="tns:ScanPorts"/>
+  <output message="tns:ScanPortsResponse"/>
+ </operation>
+ <operation name="SelectPort">
+  <documentation>Service definition of function SpRc__SelectPort</documentation>
+  <input message="tns:SelectPort"/>
+  <output message="tns:SelectPortResponse"/>
+ </operation>
+ <operation name="SelectDtaPlus">
+  <documentation>Service definition of function SpRc__SelectDtaPlus</documentation>
+  <input message="tns:SelectDtaPlus"/>
+  <output message="tns:SelectDtaPlusResponse"/>
+ </operation>
+ <operation name="ClearErrors">
+  <documentation>Service definition of function SpRc__ClearErrors</documentation>
+  <input message="tns:ClearErrors"/>
+  <output message="tns:ClearErrorsResponse"/>
+ </operation>
+ <operation name="GetPlayoutInfo">
+  <documentation>Service definition of function SpRc__GetPlayoutInfo</documentation>
+  <input message="tns:GetPlayoutInfo"/>
+  <output message="tns:GetPlayoutInfoResponse"/>
+ </operation>
+ <operation name="SetSubLoopPars">
+  <documentation>Service definition of function SpRc__SetSubLoopPars</documentation>
+  <input message="tns:SetSubLoopPars"/>
+  <output message="tns:SetSubLoopParsResponse"/>
+ </operation>
+ <operation name="GetPlayoutStatus">
+  <documentation>Service definition of function SpRc__GetPlayoutStatus</documentation>
+  <input message="tns:GetPlayoutStatus"/>
+  <output message="tns:GetPlayoutStatusResponse"/>
+ </operation>
+ <operation name="GetSfnStatus">
+  <documentation>Service definition of function SpRc__GetSfnStatus</documentation>
+  <input message="tns:GetSfnStatus"/>
+  <output message="tns:GetSfnStatusResponse"/>
+ </operation>
+ <operation name="Normalise">
+  <documentation>Service definition of function SpRc__Normalise</documentation>
+  <input message="tns:Normalise"/>
+  <output message="tns:NormaliseResponse"/>
+ </operation>
+ <operation name="OpenChannelModellingFile">
+  <documentation>Service definition of function SpRc__OpenChannelModellingFile</documentation>
+  <input message="tns:OpenChannelModellingFile"/>
+  <output message="tns:OpenChannelModellingFileResponse"/>
+ </operation>
+ <operation name="OpenFile">
+  <documentation>Service definition of function SpRc__OpenFile</documentation>
+  <input message="tns:OpenFile"/>
+  <output message="tns:OpenFileResponse"/>
+ </operation>
+ <operation name="SaveChannelModellingSettings">
+  <documentation>Service definition of function SpRc__SaveChannelModellingSettings</documentation>
+  <input message="tns:SaveChannelModellingSettings"/>
+  <output message="tns:SaveChannelModellingSettingsResponse"/>
+ </operation>
+ <operation name="SaveSettings">
+  <documentation>Service definition of function SpRc__SaveSettings</documentation>
+  <input message="tns:SaveSettings"/>
+  <output message="tns:SaveSettingsResponse"/>
+ </operation>
+ <operation name="GetAsiPars">
+  <documentation>Service definition of function SpRc__GetAsiPars</documentation>
+  <input message="tns:GetAsiPars"/>
+  <output message="tns:GetAsiParsResponse"/>
+ </operation>
+ <operation name="SetAsiPars">
+  <documentation>Service definition of function SpRc__SetAsiPars</documentation>
+  <input message="tns:SetAsiPars"/>
+  <output message="tns:SetAsiParsResponse"/>
+ </operation>
+ <operation name="SetHwNoisePars">
+  <documentation>Service definition of function SpRc__SetHwNoisePars</documentation>
+  <input message="tns:SetHwNoisePars"/>
+  <output message="tns:SetHwNoiseParsResponse"/>
+ </operation>
+ <operation name="GetHwNoisePars">
+  <documentation>Service definition of function SpRc__GetHwNoisePars</documentation>
+  <input message="tns:GetHwNoisePars"/>
+  <output message="tns:GetHwNoiseParsResponse"/>
+ </operation>
+ <operation name="GetIqGain">
+  <documentation>Service definition of function SpRc__GetIqGain</documentation>
+  <input message="tns:GetIqGain"/>
+  <output message="tns:GetIqGainResponse"/>
+ </operation>
+ <operation name="SetIqGain">
+  <documentation>Service definition of function SpRc__SetIqGain</documentation>
+  <input message="tns:SetIqGain"/>
+  <output message="tns:SetIqGainResponse"/>
+ </operation>
+ <operation name="GetChannelModellingPars">
+  <documentation>Service definition of function SpRc__GetChannelModellingPars</documentation>
+  <input message="tns:GetChannelModellingPars"/>
+  <output message="tns:GetChannelModellingParsResponse"/>
+ </operation>
+ <operation name="SetChannelModellingPars">
+  <documentation>Service definition of function SpRc__SetChannelModellingPars</documentation>
+  <input message="tns:SetChannelModellingPars"/>
+  <output message="tns:SetChannelModellingParsResponse"/>
+ </operation>
+ <operation name="GetCmmbPars">
+  <documentation>Service definition of function SpRc__GetCmmbPars</documentation>
+  <input message="tns:GetCmmbPars"/>
+  <output message="tns:GetCmmbParsResponse"/>
+ </operation>
+ <operation name="SetCmmbPars">
+  <documentation>Service definition of function SpRc__SetCmmbPars</documentation>
+  <input message="tns:SetCmmbPars"/>
+  <output message="tns:SetCmmbParsResponse"/>
+ </operation>
+ <operation name="GetSignalSource">
+  <documentation>Service definition of function SpRc__GetSignalSource</documentation>
+  <input message="tns:GetSignalSource"/>
+  <output message="tns:GetSignalSourceResponse"/>
+ </operation>
+ <operation name="SetSignalSource">
+  <documentation>Service definition of function SpRc__SetSignalSource</documentation>
+  <input message="tns:SetSignalSource"/>
+  <output message="tns:SetSignalSourceResponse"/>
+ </operation>
+ <operation name="GetDvbT2Group">
+  <documentation>Service definition of function SpRc__GetDvbT2Group</documentation>
+  <input message="tns:GetDvbT2Group"/>
+  <output message="tns:GetDvbT2GroupResponse"/>
+ </operation>
+ <operation name="SetDvbT2Group">
+  <documentation>Service definition of function SpRc__SetDvbT2Group</documentation>
+  <input message="tns:SetDvbT2Group"/>
+  <output message="tns:SetDvbT2GroupResponse"/>
+ </operation>
+ <operation name="GetDvbT2Pars">
+  <documentation>Service definition of function SpRc__GetDvbT2Pars</documentation>
+  <input message="tns:GetDvbT2Pars"/>
+  <output message="tns:GetDvbT2ParsResponse"/>
+ </operation>
+ <operation name="SetDvbT2Pars">
+  <documentation>Service definition of function SpRc__SetDvbT2Pars</documentation>
+  <input message="tns:SetDvbT2Pars"/>
+  <output message="tns:SetDvbT2ParsResponse"/>
+ </operation>
+ <operation name="GetIsdbtPars">
+  <documentation>Service definition of function SpRc__GetIsdbtPars</documentation>
+  <input message="tns:GetIsdbtPars"/>
+  <output message="tns:GetIsdbtParsResponse"/>
+ </operation>
+ <operation name="SetIsdbtPars">
+  <documentation>Service definition of function SpRc__SetIsdbtPars</documentation>
+  <input message="tns:SetIsdbtPars"/>
+  <output message="tns:SetIsdbtParsResponse"/>
+ </operation>
+ <operation name="GetModPars">
+  <documentation>Service definition of function SpRc__GetModPars</documentation>
+  <input message="tns:GetModPars"/>
+  <output message="tns:GetModParsResponse"/>
+ </operation>
+ <operation name="SetModPars">
+  <documentation>Service definition of function SpRc__SetModPars</documentation>
+  <input message="tns:SetModPars"/>
+  <output message="tns:SetModParsResponse"/>
+ </operation>
+ <operation name="SetRemux">
+  <documentation>Service definition of function SpRc__SetRemux</documentation>
+  <input message="tns:SetRemux"/>
+  <output message="tns:SetRemuxResponse"/>
+ </operation>
+ <operation name="GetRfPars">
+  <documentation>Service definition of function SpRc__GetRfPars</documentation>
+  <input message="tns:GetRfPars"/>
+  <output message="tns:GetRfParsResponse"/>
+ </operation>
+ <operation name="SetRfPars">
+  <documentation>Service definition of function SpRc__SetRfPars</documentation>
+  <input message="tns:SetRfPars"/>
+  <output message="tns:SetRfParsResponse"/>
+ </operation>
+ <operation name="SetSfnMode">
+  <documentation>Service definition of function SpRc__SetSfnMode</documentation>
+  <input message="tns:SetSfnMode"/>
+  <output message="tns:SetSfnModeResponse"/>
+ </operation>
+ <operation name="GetSpiPars">
+  <documentation>Service definition of function SpRc__GetSpiPars</documentation>
+  <input message="tns:GetSpiPars"/>
+  <output message="tns:GetSpiParsResponse"/>
+ </operation>
+ <operation name="SetSpiPars">
+  <documentation>Service definition of function SpRc__SetSpiPars</documentation>
+  <input message="tns:SetSpiPars"/>
+  <output message="tns:SetSpiParsResponse"/>
+ </operation>
+ <operation name="GetTdtAdaptPars">
+  <documentation>Service definition of function SpRc__GetTdtAdaptPars</documentation>
+  <input message="tns:GetTdtAdaptPars"/>
+  <output message="tns:GetTdtAdaptParsResponse"/>
+ </operation>
+ <operation name="SetTdtAdaptPars">
+  <documentation>Service definition of function SpRc__SetTdtAdaptPars</documentation>
+  <input message="tns:SetTdtAdaptPars"/>
+  <output message="tns:SetTdtAdaptParsResponse"/>
+ </operation>
+ <operation name="GetTsgPars">
+  <documentation>Service definition of function SpRc__GetTsgPars</documentation>
+  <input message="tns:GetTsgPars"/>
+  <output message="tns:GetTsgParsResponse"/>
+ </operation>
+ <operation name="SetTsgPars">
+  <documentation>Service definition of function SpRc__SetTsgPars</documentation>
+  <input message="tns:SetTsgPars"/>
+  <output message="tns:SetTsgParsResponse"/>
+ </operation>
+ <operation name="GetTsoipPars">
+  <documentation>Service definition of function SpRc__GetTsoipPars</documentation>
+  <input message="tns:GetTsoipPars"/>
+  <output message="tns:GetTsoipParsResponse"/>
+ </operation>
+ <operation name="SetTsoipPars">
+  <documentation>Service definition of function SpRc__SetTsoipPars</documentation>
+  <input message="tns:SetTsoipPars"/>
+  <output message="tns:SetTsoipParsResponse"/>
+ </operation>
+ <operation name="GetUseNit">
+  <documentation>Service definition of function SpRc__GetUseNit</documentation>
+  <input message="tns:GetUseNit"/>
+  <output message="tns:GetUseNitResponse"/>
+ </operation>
+ <operation name="SetUseNit">
+  <documentation>Service definition of function SpRc__SetUseNit</documentation>
+  <input message="tns:SetUseNit"/>
+  <output message="tns:SetUseNitResponse"/>
+ </operation>
+ <operation name="SetLoopFlags">
+  <documentation>Service definition of function SpRc__SetLoopFlags</documentation>
+  <input message="tns:SetLoopFlags"/>
+  <output message="tns:SetLoopFlagsResponse"/>
+ </operation>
+ <operation name="SetPlayoutState">
+  <documentation>Service definition of function SpRc__SetPlayoutState</documentation>
+  <input message="tns:SetPlayoutState"/>
+  <output message="tns:SetPlayoutStateResponse"/>
+ </operation>
+ <operation name="SetPlayoutStateSfn">
+  <documentation>Service definition of function SpRc__SetPlayoutStateSfn</documentation>
+  <input message="tns:SetPlayoutStateSfn"/>
+  <output message="tns:SetPlayoutStateSfnResponse"/>
+ </operation>
+ <operation name="SetTsRate">
+  <documentation>Service definition of function SpRc__SetTsRate</documentation>
+  <input message="tns:SetTsRate"/>
+  <output message="tns:SetTsRateResponse"/>
+ </operation>
+ <operation name="WaitForCondition">
+  <documentation>Service definition of function SpRc__WaitForCondition</documentation>
+  <input message="tns:WaitForCondition"/>
+  <output message="tns:WaitForConditionResponse"/>
+ </operation>
+ <operation name="ShowWindow">
+  <documentation>Service definition of function SpRc__ShowWindow</documentation>
+  <input message="tns:ShowWindow"/>
+  <output message="tns:ShowWindowResponse"/>
+ </operation>
+</portType>
+
+<binding name="SpRc" type="tns:SpRcPortType">
+ <SOAP:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
+ <operation name="OpenSession">
+  <SOAP:operation soapAction=""/>
+  <input>
+     <SOAP:body parts="parameters" use="literal"/>
+  </input>
+  <output>
+     <SOAP:body parts="parameters" use="literal"/>
+  </output>
+ </operation>
+ <operation name="CloseSession">
+  <SOAP:operation soapAction=""/>
+  <input>
+     <SOAP:body parts="parameters" use="literal"/>
+  </input>
+  <output>
+     <SOAP:body parts="parameters" use="literal"/>
+  </output>
+ </operation>
+ <operation name="GetAppInfo">
+  <SOAP:operation soapAction=""/>
+  <input>
+     <SOAP:body parts="parameters" use="literal"/>
+  </input>
+  <output>
+     <SOAP:body parts="parameters" use="literal"/>
+  </output>
+ </operation>
+ <operation name="GetRemoteVersion">
+  <SOAP:operation soapAction=""/>
+  <input>
+     <SOAP:body parts="parameters" use="literal"/>
+  </input>
+  <output>
+     <SOAP:body parts="parameters" use="literal"/>
+  </output>
+ </operation>
+ <operation name="GetRemoteDtapiVersion">
+  <SOAP:operation soapAction=""/>
+  <input>
+     <SOAP:body parts="parameters" use="literal"/>
+  </input>
+  <output>
+     <SOAP:body parts="parameters" use="literal"/>
+  </output>
+ </operation>
+ <operation name="ScanPorts">
+  <SOAP:operation soapAction=""/>
+  <input>
+     <SOAP:body parts="parameters" use="literal"/>
+  </input>
+  <output>
+     <SOAP:body parts="parameters" use="literal"/>
+  </output>
+ </operation>
+ <operation name="SelectPort">
+  <SOAP:operation soapAction=""/>
+  <input>
+     <SOAP:body parts="parameters" use="literal"/>
+  </input>
+  <output>
+     <SOAP:body parts="parameters" use="literal"/>
+  </output>
+ </operation>
+ <operation name="SelectDtaPlus">
+  <SOAP:operation soapAction=""/>
+  <input>
+     <SOAP:body parts="parameters" use="literal"/>
+  </input>
+  <output>
+     <SOAP:body parts="parameters" use="literal"/>
+  </output>
+ </operation>
+ <operation name="ClearErrors">
+  <SOAP:operation soapAction=""/>
+  <input>
+     <SOAP:body parts="parameters" use="literal"/>
+  </input>
+  <output>
+     <SOAP:body parts="parameters" use="literal"/>
+  </output>
+ </operation>
+ <operation name="GetPlayoutInfo">
+  <SOAP:operation soapAction=""/>
+  <input>
+     <SOAP:body parts="parameters" use="literal"/>
+  </input>
+  <output>
+     <SOAP:body parts="parameters" use="literal"/>
+  </output>
+ </operation>
+ <operation name="SetSubLoopPars">
+  <SOAP:operation soapAction=""/>
+  <input>
+     <SOAP:body parts="parameters" use="literal"/>
+  </input>
+  <output>
+     <SOAP:body parts="parameters" use="literal"/>
+  </output>
+ </operation>
+ <operation name="GetPlayoutStatus">
+  <SOAP:operation soapAction=""/>
+  <input>
+     <SOAP:body parts="parameters" use="literal"/>
+  </input>
+  <output>
+     <SOAP:body parts="parameters" use="literal"/>
+  </output>
+ </operation>
+ <operation name="GetSfnStatus">
+  <SOAP:operation soapAction=""/>
+  <input>
+     <SOAP:body parts="parameters" use="literal"/>
+  </input>
+  <output>
+     <SOAP:body parts="parameters" use="literal"/>
+  </output>
+ </operation>
+ <operation name="Normalise">
+  <SOAP:operation soapAction=""/>
+  <input>
+     <SOAP:body parts="parameters" use="literal"/>
+  </input>
+  <output>
+     <SOAP:body parts="parameters" use="literal"/>
+  </output>
+ </operation>
+ <operation name="OpenChannelModellingFile">
+  <SOAP:operation soapAction=""/>
+  <input>
+     <SOAP:body parts="parameters" use="literal"/>
+  </input>
+  <output>
+     <SOAP:body parts="parameters" use="literal"/>
+  </output>
+ </operation>
+ <operation name="OpenFile">
+  <SOAP:operation soapAction=""/>
+  <input>
+     <SOAP:body parts="parameters" use="literal"/>
+  </input>
+  <output>
+     <SOAP:body parts="parameters" use="literal"/>
+  </output>
+ </operation>
+ <operation name="SaveChannelModellingSettings">
+  <SOAP:operation soapAction=""/>
+  <input>
+     <SOAP:body parts="parameters" use="literal"/>
+  </input>
+  <output>
+     <SOAP:body parts="parameters" use="literal"/>
+  </output>
+ </operation>
+ <operation name="SaveSettings">
+  <SOAP:operation soapAction=""/>
+  <input>
+     <SOAP:body parts="parameters" use="literal"/>
+  </input>
+  <output>
+     <SOAP:body parts="parameters" use="literal"/>
+  </output>
+ </operation>
+ <operation name="GetAsiPars">
+  <SOAP:operation soapAction=""/>
+  <input>
+     <SOAP:body parts="parameters" use="literal"/>
+  </input>
+  <output>
+     <SOAP:body parts="parameters" use="literal"/>
+  </output>
+ </operation>
+ <operation name="SetAsiPars">
+  <SOAP:operation soapAction=""/>
+  <input>
+     <SOAP:body parts="parameters" use="literal"/>
+  </input>
+  <output>
+     <SOAP:body parts="parameters" use="literal"/>
+  </output>
+ </operation>
+ <operation name="SetHwNoisePars">
+  <SOAP:operation soapAction=""/>
+  <input>
+     <SOAP:body parts="parameters" use="literal"/>
+  </input>
+  <output>
+     <SOAP:body parts="parameters" use="literal"/>
+  </output>
+ </operation>
+ <operation name="GetHwNoisePars">
+  <SOAP:operation soapAction=""/>
+  <input>
+     <SOAP:body parts="parameters" use="literal"/>
+  </input>
+  <output>
+     <SOAP:body parts="parameters" use="literal"/>
+  </output>
+ </operation>
+ <operation name="GetIqGain">
+  <SOAP:operation soapAction=""/>
+  <input>
+     <SOAP:body parts="parameters" use="literal"/>
+  </input>
+  <output>
+     <SOAP:body parts="parameters" use="literal"/>
+  </output>
+ </operation>
+ <operation name="SetIqGain">
+  <SOAP:operation soapAction=""/>
+  <input>
+     <SOAP:body parts="parameters" use="literal"/>
+  </input>
+  <output>
+     <SOAP:body parts="parameters" use="literal"/>
+  </output>
+ </operation>
+ <operation name="GetChannelModellingPars">
+  <SOAP:operation soapAction=""/>
+  <input>
+     <SOAP:body parts="parameters" use="literal"/>
+  </input>
+  <output>
+     <SOAP:body parts="parameters" use="literal"/>
+  </output>
+ </operation>
+ <operation name="SetChannelModellingPars">
+  <SOAP:operation soapAction=""/>
+  <input>
+     <SOAP:body parts="parameters" use="literal"/>
+  </input>
+  <output>
+     <SOAP:body parts="parameters" use="literal"/>
+  </output>
+ </operation>
+ <operation name="GetCmmbPars">
+  <SOAP:operation soapAction=""/>
+  <input>
+     <SOAP:body parts="parameters" use="literal"/>
+  </input>
+  <output>
+     <SOAP:body parts="parameters" use="literal"/>
+  </output>
+ </operation>
+ <operation name="SetCmmbPars">
+  <SOAP:operation soapAction=""/>
+  <input>
+     <SOAP:body parts="parameters" use="literal"/>
+  </input>
+  <output>
+     <SOAP:body parts="parameters" use="literal"/>
+  </output>
+ </operation>
+ <operation name="GetSignalSource">
+  <SOAP:operation soapAction=""/>
+  <input>
+     <SOAP:body parts="parameters" use="literal"/>
+  </input>
+  <output>
+     <SOAP:body parts="parameters" use="literal"/>
+  </output>
+ </operation>
+ <operation name="SetSignalSource">
+  <SOAP:operation soapAction=""/>
+  <input>
+     <SOAP:body parts="parameters" use="literal"/>
+  </input>
+  <output>
+     <SOAP:body parts="parameters" use="literal"/>
+  </output>
+ </operation>
+ <operation name="GetDvbT2Group">
+  <SOAP:operation soapAction=""/>
+  <input>
+     <SOAP:body parts="parameters" use="literal"/>
+  </input>
+  <output>
+     <SOAP:body parts="parameters" use="literal"/>
+  </output>
+ </operation>
+ <operation name="SetDvbT2Group">
+  <SOAP:operation soapAction=""/>
+  <input>
+     <SOAP:body parts="parameters" use="literal"/>
+  </input>
+  <output>
+     <SOAP:body parts="parameters" use="literal"/>
+  </output>
+ </operation>
+ <operation name="GetDvbT2Pars">
+  <SOAP:operation soapAction=""/>
+  <input>
+     <SOAP:body parts="parameters" use="literal"/>
+  </input>
+  <output>
+     <SOAP:body parts="parameters" use="literal"/>
+  </output>
+ </operation>
+ <operation name="SetDvbT2Pars">
+  <SOAP:operation soapAction=""/>
+  <input>
+     <SOAP:body parts="parameters" use="literal"/>
+  </input>
+  <output>
+     <SOAP:body parts="parameters" use="literal"/>
+  </output>
+ </operation>
+ <operation name="GetIsdbtPars">
+  <SOAP:operation soapAction=""/>
+  <input>
+     <SOAP:body parts="parameters" use="literal"/>
+  </input>
+  <output>
+     <SOAP:body parts="parameters" use="literal"/>
+  </output>
+ </operation>
+ <operation name="SetIsdbtPars">
+  <SOAP:operation soapAction=""/>
+  <input>
+     <SOAP:body parts="parameters" use="literal"/>
+  </input>
+  <output>
+     <SOAP:body parts="parameters" use="literal"/>
+  </output>
+ </operation>
+ <operation name="GetModPars">
+  <SOAP:operation soapAction=""/>
+  <input>
+     <SOAP:body parts="parameters" use="literal"/>
+  </input>
+  <output>
+     <SOAP:body parts="parameters" use="literal"/>
+  </output>
+ </operation>
+ <operation name="SetModPars">
+  <SOAP:operation soapAction=""/>
+  <input>
+     <SOAP:body parts="parameters" use="literal"/>
+  </input>
+  <output>
+     <SOAP:body parts="parameters" use="literal"/>
+  </output>
+ </operation>
+ <operation name="SetRemux">
+  <SOAP:operation soapAction=""/>
+  <input>
+     <SOAP:body parts="parameters" use="literal"/>
+  </input>
+  <output>
+     <SOAP:body parts="parameters" use="literal"/>
+  </output>
+ </operation>
+ <operation name="GetRfPars">
+  <SOAP:operation soapAction=""/>
+  <input>
+     <SOAP:body parts="parameters" use="literal"/>
+  </input>
+  <output>
+     <SOAP:body parts="parameters" use="literal"/>
+  </output>
+ </operation>
+ <operation name="SetRfPars">
+  <SOAP:operation soapAction=""/>
+  <input>
+     <SOAP:body parts="parameters" use="literal"/>
+  </input>
+  <output>
+     <SOAP:body parts="parameters" use="literal"/>
+  </output>
+ </operation>
+ <operation name="SetSfnMode">
+  <SOAP:operation soapAction=""/>
+  <input>
+     <SOAP:body parts="parameters" use="literal"/>
+  </input>
+  <output>
+     <SOAP:body parts="parameters" use="literal"/>
+  </output>
+ </operation>
+ <operation name="GetSpiPars">
+  <SOAP:operation soapAction=""/>
+  <input>
+     <SOAP:body parts="parameters" use="literal"/>
+  </input>
+  <output>
+     <SOAP:body parts="parameters" use="literal"/>
+  </output>
+ </operation>
+ <operation name="SetSpiPars">
+  <SOAP:operation soapAction=""/>
+  <input>
+     <SOAP:body parts="parameters" use="literal"/>
+  </input>
+  <output>
+     <SOAP:body parts="parameters" use="literal"/>
+  </output>
+ </operation>
+ <operation name="GetTdtAdaptPars">
+  <SOAP:operation soapAction=""/>
+  <input>
+     <SOAP:body parts="parameters" use="literal"/>
+  </input>
+  <output>
+     <SOAP:body parts="parameters" use="literal"/>
+  </output>
+ </operation>
+ <operation name="SetTdtAdaptPars">
+  <SOAP:operation soapAction=""/>
+  <input>
+     <SOAP:body parts="parameters" use="literal"/>
+  </input>
+  <output>
+     <SOAP:body parts="parameters" use="literal"/>
+  </output>
+ </operation>
+ <operation name="GetTsgPars">
+  <SOAP:operation soapAction=""/>
+  <input>
+     <SOAP:body parts="parameters" use="literal"/>
+  </input>
+  <output>
+     <SOAP:body parts="parameters" use="literal"/>
+  </output>
+ </operation>
+ <operation name="SetTsgPars">
+  <SOAP:operation soapAction=""/>
+  <input>
+     <SOAP:body parts="parameters" use="literal"/>
+  </input>
+  <output>
+     <SOAP:body parts="parameters" use="literal"/>
+  </output>
+ </operation>
+ <operation name="GetTsoipPars">
+  <SOAP:operation soapAction=""/>
+  <input>
+     <SOAP:body parts="parameters" use="literal"/>
+  </input>
+  <output>
+     <SOAP:body parts="parameters" use="literal"/>
+  </output>
+ </operation>
+ <operation name="SetTsoipPars">
+  <SOAP:operation soapAction=""/>
+  <input>
+     <SOAP:body parts="parameters" use="literal"/>
+  </input>
+  <output>
+     <SOAP:body parts="parameters" use="literal"/>
+  </output>
+ </operation>
+ <operation name="GetUseNit">
+  <SOAP:operation soapAction=""/>
+  <input>
+     <SOAP:body parts="parameters" use="literal"/>
+  </input>
+  <output>
+     <SOAP:body parts="parameters" use="literal"/>
+  </output>
+ </operation>
+ <operation name="SetUseNit">
+  <SOAP:operation soapAction=""/>
+  <input>
+     <SOAP:body parts="parameters" use="literal"/>
+  </input>
+  <output>
+     <SOAP:body parts="parameters" use="literal"/>
+  </output>
+ </operation>
+ <operation name="SetLoopFlags">
+  <SOAP:operation soapAction=""/>
+  <input>
+     <SOAP:body parts="parameters" use="literal"/>
+  </input>
+  <output>
+     <SOAP:body parts="parameters" use="literal"/>
+  </output>
+ </operation>
+ <operation name="SetPlayoutState">
+  <SOAP:operation soapAction=""/>
+  <input>
+     <SOAP:body parts="parameters" use="literal"/>
+  </input>
+  <output>
+     <SOAP:body parts="parameters" use="literal"/>
+  </output>
+ </operation>
+ <operation name="SetPlayoutStateSfn">
+  <SOAP:operation soapAction=""/>
+  <input>
+     <SOAP:body parts="parameters" use="literal"/>
+  </input>
+  <output>
+     <SOAP:body parts="parameters" use="literal"/>
+  </output>
+ </operation>
+ <operation name="SetTsRate">
+  <SOAP:operation soapAction=""/>
+  <input>
+     <SOAP:body parts="parameters" use="literal"/>
+  </input>
+  <output>
+     <SOAP:body parts="parameters" use="literal"/>
+  </output>
+ </operation>
+ <operation name="WaitForCondition">
+  <SOAP:operation soapAction=""/>
+  <input>
+     <SOAP:body parts="parameters" use="literal"/>
+  </input>
+  <output>
+     <SOAP:body parts="parameters" use="literal"/>
+  </output>
+ </operation>
+ <operation name="ShowWindow">
+  <SOAP:operation soapAction=""/>
+  <input>
+     <SOAP:body parts="parameters" use="literal"/>
+  </input>
+  <output>
+     <SOAP:body parts="parameters" use="literal"/>
+  </output>
+ </operation>
+</binding>
+
+<service name="SpRc">
+ <documentation>gSOAP 2.7.10 generated service definition</documentation>
+ <port name="SpRc" binding="tns:SpRc">
+  <SOAP:address location="http://localhost:80"/>
+ </port>
+</service>
+
+</definitions>

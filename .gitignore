@@ -5,9 +5,12 @@ __pycache__/
 venv/
 *.egg-info/
 dist/
+build/
 .pytest_cache/
 # Temporary WSDL files generated at runtime
 *.wsdl
+# ...but the SpRc.wsdl template in the package IS required at runtime
+!src/streamxpress_mcp/sprc_import/SpRc.wsdl
 
 # Reasonix local metadata
 .reasonix/
