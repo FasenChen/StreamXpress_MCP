@@ -16,6 +16,21 @@
 >
 > MCP 服务本身**不需要**配置 StreamXpress 的安装位置——它通过 SpRcApi（HTTP/SOAP）远程控制接口连接 StreamXpress，只需在 `connect` 工具中指定 StreamXpress 所在主机的地址和 `-rc` 监听端口（默认 `http://localhost:5000`）。MCP 与 StreamXpress 可以分处两台机器。
 
+## 配置文件
+
+MCP 支持通过项目根目录的 `config.json` 集中配置，在使用前填写：
+
+1. 复制 `config.example.json` 为 `config.json`（`config.json` 已被 git 忽略，不会提交）。
+2. 按需填写字段：
+
+| 字段 | 说明 |
+|---|---|
+| `streamxpress_path` | StreamXpress 可执行文件的完整路径（如 `C:\Program Files\DekTec\StreamXpress\StreamXpress64.exe`），`launch` 工具用它启动 |
+| `sprc_api_path` | SpRcApi 目录路径，默认留空（使用包内自带 wsdl）；若填写，运行时优先使用 `<sprc_api_path>\WSDL\SpRc.wsdl` 作为 wsdl 来源 |
+| `rc_port` | 远程控制端口，默认 `5000` |
+
+查找顺序：环境变量 `STREAMXPRESS_MCP_CONFIG` 指定的文件 → 项目根 `config.json` → 默认值。配置文件缺失或字段留空时不报错，使用默认值。
+
 ## 快速开始
 
 MCP 客户端（WorkBuddy、Claude Desktop 等）会用配置里的 `command`（默认 `python`）启动本服务，而客户端解析到的 `python` 通常**不是**项目 venv 里的 python。因此**最简单的方式是直接把包装到当前 Python 环境，不使用 venv**：
@@ -27,8 +42,8 @@ cd StreamXpress_MCP
 pip install -e ".[dev]"
 
 # 2. 以远程控制模式启动 StreamXpress
-#    可执行文件不在 PATH 中，需用完整路径；文件名可能是 StreamXpress.exe 或
-#    StreamXpress64.exe，以实际安装为准（也可先把其目录加入 PATH 再直接调用）
+#    可执行文件不在 PATH 中；先在 config.json 里填好 streamxpress_path（见"配置文件"章节），
+#    然后可用 MCP 的 launch 工具启动；也可手动用完整路径启动：
 & "C:\Program Files\DekTec\StreamXpress\StreamXpress64.exe" -rc 5000
 
 # 3. 运行 MCP 服务
@@ -62,6 +77,7 @@ python -m streamxpress_mcp
 
 | 工具 | 说明 |
 |---|---|
+| `launch` | 按 config.json 启动 StreamXpress（-rc 模式）并探测端口 |
 | `connect` | 连接 StreamXpress RC 会话 |
 | `disconnect` | 断开连接 |
 | `scan_ports` | 扫描可用输出端口 |
@@ -81,16 +97,17 @@ python -m streamxpress_mcp
 用户: 把 C:\Streams\news.ts 以 25 Mbps 推送到组播地址 239.1.1.1:1234
 
 AI 依次调用:
-  1. connect(host="http://localhost", port=5000)
-  2. scan_ports() → 选择一个 TS-over-IP 端口
-  3. select_port(serial=..., port_num=1)
-  4. set_tsoip_params(dest_ip="239.1.1.1", dest_port=1234, protocol="UDP")
-  5. set_rate(rate_bps=25_000_000)
-  6. open_file(filepath="C:\\Streams\\news.ts")
-  7. start()
-  8. get_status() → 监控播放进度
-  9. stop()
-  10. disconnect()
+  1. launch() → 按 config.json 启动 StreamXpress，得到 port（默认 5000）
+  2. connect(host="http://localhost", port=<launch 返回的 port>)
+  3. scan_ports() → 选择一个 TS-over-IP 端口
+  4. select_port(serial=..., port_num=1)
+  5. set_tsoip_params(dest_ip="239.1.1.1", dest_port=1234, protocol="UDP")
+  6. set_rate(rate_bps=25_000_000)
+  7. open_file(filepath="C:\\Streams\\news.ts")
+  8. start()
+  9. get_status() → 监控播放进度
+  10. stop()
+  11. disconnect()
 ```
 
 ## 许可证
