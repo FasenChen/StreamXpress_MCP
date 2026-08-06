@@ -8,3 +8,10 @@ dist/
 .pytest_cache/
 # Temporary WSDL files generated at runtime
 *.wsdl
+
+# Reasonix local metadata
+.reasonix/
+reasonix.toml
+
+# DekTec official downloads (copyrighted, not for redistribution)
+StreamXpress_Official_Data/
