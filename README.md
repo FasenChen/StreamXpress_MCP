@@ -4,8 +4,8 @@ MCP (Model Context Protocol) server for [DekTec StreamXpress](https://www.dektec
 
 ## Prerequisites
 
-- **StreamXpress** v3.x with **DTC-302-RC license** (remote control)
-- DekTec output adapter with **DTC-300-SP** (playback) or **DTC-300-NICP** (IP via local NIC)
+- **StreamXpress** v3.x installed with a **DTC-302-RC license** (remote control)
+- A DekTec output adapter with **DTC-300-SP** (playback) or **DTC-300-NICP** (IP via local NIC)
 - Python 3.10+
 
 ## Quick Start
@@ -27,7 +27,7 @@ python -m streamxpress_mcp
 
 ## MCP Client Configuration
 
-Add to Claude Desktop `claude_desktop_config.json`:
+Add to your MCP client's config (e.g. Claude Desktop `claude_desktop_config.json`):
 
 ```json
 {
@@ -47,32 +47,32 @@ Add to Claude Desktop `claude_desktop_config.json`:
 | `streamxpress_connect` | Connect to StreamXpress RC session |
 | `streamxpress_disconnect` | Disconnect from session |
 | `streamxpress_scan_ports` | List available output ports |
-| `streamxpress_select_port` | Select an output port |
+| `streamxpress_select_port` | Select an output port for playout |
 | `streamxpress_open_file` | Load a TS file |
 | `streamxpress_start` | Start playout |
 | `streamxpress_stop` | Stop playout |
-| `streamxpress_get_status` | Get playout progress |
+| `streamxpress_get_status` | Get playout progress and info |
 | `streamxpress_set_rate` | Set TS bitrate (bps) |
-| `streamxpress_set_tsoip_params` | Configure UDP/RTP TS-over-IP |
-| `streamxpress_set_rf_params` | Set RF frequency/level |
-| `streamxpress_set_asi_params` | Set ASI remux/packet mode |
+| `streamxpress_set_tsoip_params` | Configure UDP/RTP TS-over-IP output |
+| `streamxpress_set_rf_params` | Set RF frequency and level |
+| `streamxpress_set_asi_params` | Set ASI remux and packet mode |
 
-## Example
+## Example AI Interaction
 
 ```
-User: Push news.ts to multicast 239.1.1.1:1234 at 25 Mbps
+User: Push C:\Streams\news.ts to multicast 239.1.1.1:1234 at 25 Mbps
 
 AI uses:
   1. streamxpress_connect(host="http://localhost", port=5000)
-  2. streamxpress_scan_ports()
+  2. streamxpress_scan_ports() → pick a TS-over-IP port
   3. streamxpress_select_port(serial=..., port_num=1)
-  4. streamxpress_set_tsoip_params(dest_ip="239.1.1.1", dest_port=1234)
+  4. streamxpress_set_tsoip_params(dest_ip="239.1.1.1", dest_port=1234, protocol="UDP")
   5. streamxpress_set_rate(rate_bps=25_000_000)
   6. streamxpress_open_file(filepath="C:\\Streams\\news.ts")
   7. streamxpress_start()
-  8. streamxpress_get_status()
+  8. streamxpress_get_status() → monitor progress
 ```
 
 ## License
 
-This project wraps DekTec SpRcApi. Valid DekTec licenses (DTC-300-SP + DTC-302-RC) required.
+This project wraps the DekTec SpRcApi. You must hold valid DekTec licenses (DTC-300-SP + DTC-302-RC) to use this software with StreamXpress.
