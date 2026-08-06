@@ -24,7 +24,7 @@ def get_client() -> StreamXpressClient:
 # ── Connection tools ──
 
 @mcp.tool()
-def streamxpress_connect(host: str, port: int) -> dict:
+def connect(host: str, port: int) -> dict:
     """Connect to a StreamXpress instance running in remote-control mode.
 
     The StreamXpress must be started with: StreamXpress.exe -rc <port>
@@ -43,7 +43,7 @@ def streamxpress_connect(host: str, port: int) -> dict:
 
 
 @mcp.tool()
-def streamxpress_disconnect() -> dict:
+def disconnect() -> dict:
     """Disconnect from the StreamXpress remote-control session."""
     client = get_client()
     client.disconnect()
@@ -73,7 +73,7 @@ def _describe_output_type(flags: int) -> list[str]:
 
 
 @mcp.tool()
-def streamxpress_scan_ports() -> list[dict]:
+def scan_ports() -> list[dict]:
     """Scan for available output ports on the connected StreamXpress.
 
     Returns a list of port descriptors with serial, type, and output capabilities.
@@ -93,7 +93,7 @@ def streamxpress_scan_ports() -> list[dict]:
 
 
 @mcp.tool()
-def streamxpress_select_port(serial: int, port_num: int, modulation: int = 0) -> dict:
+def select_port(serial: int, port_num: int, modulation: int = 0) -> dict:
     """Select a physical output port for playout.
 
     Args:
@@ -107,7 +107,7 @@ def streamxpress_select_port(serial: int, port_num: int, modulation: int = 0) ->
 
 
 @mcp.tool()
-def streamxpress_open_file(filepath: str) -> dict:
+def open_file(filepath: str) -> dict:
     """Open a TS file for playout.
 
     Args:
@@ -121,7 +121,7 @@ def streamxpress_open_file(filepath: str) -> dict:
 # ── Playback control tools ──
 
 @mcp.tool()
-def streamxpress_start() -> dict:
+def start() -> dict:
     """Start TS playout on the selected port."""
     client = get_client()
     client.start()
@@ -129,7 +129,7 @@ def streamxpress_start() -> dict:
 
 
 @mcp.tool()
-def streamxpress_stop() -> dict:
+def stop() -> dict:
     """Stop TS playout."""
     client = get_client()
     client.stop()
@@ -137,7 +137,7 @@ def streamxpress_stop() -> dict:
 
 
 @mcp.tool()
-def streamxpress_get_status() -> dict:
+def get_status() -> dict:
     """Get current playout status including position, wraps, filename, and bitrate."""
     client = get_client()
     return client.get_status()
@@ -146,7 +146,7 @@ def streamxpress_get_status() -> dict:
 # ── Parameter tools ──
 
 @mcp.tool()
-def streamxpress_set_rate(rate_bps: int) -> dict:
+def set_rate(rate_bps: int) -> dict:
     """Set the TS playout bitrate in bits per second (188-byte packets).
 
     Args:
@@ -158,7 +158,7 @@ def streamxpress_set_rate(rate_bps: int) -> dict:
 
 
 @mcp.tool()
-def streamxpress_set_tsoip_params(
+def set_tsoip_params(
     dest_ip: str,
     dest_port: int,
     num_tp_per_ip: int = 7,
@@ -197,7 +197,7 @@ def streamxpress_set_tsoip_params(
 
 
 @mcp.tool()
-def streamxpress_set_rf_params(frequency_hz: int, level_dbm: float) -> dict:
+def set_rf_params(frequency_hz: int, level_dbm: float) -> dict:
     """Set RF output frequency and level (modulator ports only).
 
     Args:
@@ -210,7 +210,7 @@ def streamxpress_set_rf_params(frequency_hz: int, level_dbm: float) -> dict:
 
 
 @mcp.tool()
-def streamxpress_set_asi_params(
+def set_asi_params(
     remux: bool = True,
     playout_rate: int = 0,
     tx_mode: int = 0,

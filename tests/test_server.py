@@ -139,9 +139,9 @@ class TestServerConnectTool:
         mock_client = MagicMock()
         mock_get_client.return_value = mock_client
 
-        from streamxpress_mcp.server import streamxpress_connect
+        from streamxpress_mcp.server import connect
 
-        result = streamxpress_connect(host="http://localhost", port=5000)
+        result = connect(host="http://localhost", port=5000)
         assert result["status"] == "connected"
         mock_client.connect.assert_called_once_with("http://localhost", 5000)
 
@@ -150,9 +150,9 @@ class TestServerConnectTool:
         mock_client = MagicMock()
         mock_get_client.return_value = mock_client
 
-        from streamxpress_mcp.server import streamxpress_disconnect
+        from streamxpress_mcp.server import disconnect
 
-        result = streamxpress_disconnect()
+        result = disconnect()
         assert result["status"] == "disconnected"
         mock_client.disconnect.assert_called_once()
 
@@ -167,8 +167,8 @@ class TestServerPortTools:
                          FirmwareVersion=100, FirmwareVariant=0, Port=1,
                          OutputType=0x00001, Capabilities=0, InUse=0)]
         mock_get_client.return_value = mock_client
-        from streamxpress_mcp.server import streamxpress_scan_ports
-        result = streamxpress_scan_ports()
+        from streamxpress_mcp.server import scan_ports
+        result = scan_ports()
         assert len(result) == 1
         assert result[0]["serial"] == 217400001
         assert "ASI" in result[0]["output_types"]
@@ -177,8 +177,8 @@ class TestServerPortTools:
     def test_select_port(self, mock_get_client):
         mock_client = MagicMock()
         mock_get_client.return_value = mock_client
-        from streamxpress_mcp.server import streamxpress_select_port
-        result = streamxpress_select_port(serial=217400001, port_num=1)
+        from streamxpress_mcp.server import select_port
+        result = select_port(serial=217400001, port_num=1)
         assert result["status"] == "ok"
         mock_client.select_port.assert_called_once_with(217400001, 1, 0)
 
@@ -186,8 +186,8 @@ class TestServerPortTools:
     def test_open_file(self, mock_get_client):
         mock_client = MagicMock()
         mock_get_client.return_value = mock_client
-        from streamxpress_mcp.server import streamxpress_open_file
-        result = streamxpress_open_file("C:\\Streams\\test.ts")
+        from streamxpress_mcp.server import open_file
+        result = open_file("C:\\Streams\\test.ts")
         assert result["status"] == "ok"
 
 
@@ -196,16 +196,16 @@ class TestServerPlayoutTools:
     def test_start(self, mock_get_client):
         mock_client = MagicMock()
         mock_get_client.return_value = mock_client
-        from streamxpress_mcp.server import streamxpress_start
-        result = streamxpress_start()
+        from streamxpress_mcp.server import start
+        result = start()
         assert result["status"] == "playing"
 
     @patch("streamxpress_mcp.server.get_client")
     def test_stop(self, mock_get_client):
         mock_client = MagicMock()
         mock_get_client.return_value = mock_client
-        from streamxpress_mcp.server import streamxpress_stop
-        result = streamxpress_stop()
+        from streamxpress_mcp.server import stop
+        result = stop()
         assert result["status"] == "stopped"
 
     @patch("streamxpress_mcp.server.get_client")
@@ -215,8 +215,8 @@ class TestServerPlayoutTools:
             "position_percent": 75.5, "num_wraps": 2,
             "playout_state": 1, "file_name": "test.ts", "ts_rate_bps": 25_000_000}
         mock_get_client.return_value = mock_client
-        from streamxpress_mcp.server import streamxpress_get_status
-        result = streamxpress_get_status()
+        from streamxpress_mcp.server import get_status
+        result = get_status()
         assert result["position_percent"] == 75.5
 
 
@@ -225,30 +225,53 @@ class TestServerParamTools:
     def test_set_rate(self, mock_get_client):
         mock_client = MagicMock()
         mock_get_client.return_value = mock_client
-        from streamxpress_mcp.server import streamxpress_set_rate
-        result = streamxpress_set_rate(25_000_000)
+        from streamxpress_mcp.server import set_rate
+        result = set_rate(25_000_000)
         assert result["status"] == "ok"
 
     @patch("streamxpress_mcp.server.get_client")
     def test_set_tsoip(self, mock_get_client):
         mock_client = MagicMock()
         mock_get_client.return_value = mock_client
-        from streamxpress_mcp.server import streamxpress_set_tsoip_params
-        result = streamxpress_set_tsoip_params(dest_ip="239.1.1.1", dest_port=1234)
+        from streamxpress_mcp.server import set_tsoip_params
+        result = set_tsoip_params(dest_ip="239.1.1.1", dest_port=1234)
         assert result["status"] == "ok"
 
     @patch("streamxpress_mcp.server.get_client")
     def test_set_rf(self, mock_get_client):
         mock_client = MagicMock()
         mock_get_client.return_value = mock_client
-        from streamxpress_mcp.server import streamxpress_set_rf_params
-        result = streamxpress_set_rf_params(frequency_hz=500_000_000, level_dbm=-37.5)
+        from streamxpress_mcp.server import set_rf_params
+        result = set_rf_params(frequency_hz=500_000_000, level_dbm=-37.5)
         assert result["status"] == "ok"
 
     @patch("streamxpress_mcp.server.get_client")
     def test_set_asi(self, mock_get_client):
         mock_client = MagicMock()
         mock_get_client.return_value = mock_client
-        from streamxpress_mcp.server import streamxpress_set_asi_params
-        result = streamxpress_set_asi_params(remux=True, playout_rate=20_000_000)
+        from streamxpress_mcp.server import set_asi_params
+        result = set_asi_params(remux=True, playout_rate=20_000_000)
         assert result["status"] == "ok"
+
+
+EXPECTED_TOOL_NAMES = {
+    "connect", "disconnect", "scan_ports", "select_port", "open_file",
+    "start", "stop", "get_status", "set_rate", "set_tsoip_params",
+    "set_rf_params", "set_asi_params",
+}
+
+
+class TestToolNaming:
+    """工具注册名不得再带 streamxpress_ 前缀（客户端会自行加 server 名前缀）。"""
+
+    def test_registered_tool_names_have_no_streamxpress_prefix(self):
+        import asyncio
+
+        from streamxpress_mcp.server import mcp
+
+        tools = asyncio.run(mcp.list_tools())
+        names = {t.name for t in tools}
+        assert EXPECTED_TOOL_NAMES <= names, f"缺少工具: {EXPECTED_TOOL_NAMES - names}"
+        assert not any(n.startswith("streamxpress_") for n in names), (
+            f"工具名仍带前缀: {sorted(n for n in names if n.startswith('streamxpress_'))}"
+        )
