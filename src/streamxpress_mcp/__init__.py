@@ -7,7 +7,7 @@ from .sprc_import import (
 )
 
 from .client import StreamXpressClient
-from . import server  # noqa: F401
+from .server import mcp
 
 __all__ = [
     "SPRC_client", "SPRC", "DTAPI",
@@ -15,4 +15,5 @@ __all__ = [
     "SpRcPlayoutInfo", "SpRcPlayoutStatus",
     "SpRcRfPars", "SpRcTsoipPars", "SpRcVersion",
     "SpRcException", "SPRC_RESULT",
+    "StreamXpressClient", "mcp",
 ]
