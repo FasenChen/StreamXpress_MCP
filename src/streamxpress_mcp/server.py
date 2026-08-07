@@ -244,7 +244,7 @@ def launch() -> dict:
     """Launch StreamXpress in remote-control mode using config.json settings.
 
     Reads streamxpress_path and rc_port from the project config.json
-    (see config.example.json), starts StreamXpress with `-rc <port>`, and
+    at the repository root, starts StreamXpress with `-rc <port>`, and
     probes the port until the RC service is ready. Returns pid, port and
     readiness; use the returned port with connect.
     """

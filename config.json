@@ -1,0 +1,6 @@
+{
+  "_说明": "用户请直接编辑本文件填入路径；不想让本地修改进入 git，请执行: git update-index --skip-worktree config.json",
+  "streamxpress_path": "",
+  "sprc_api_path": "",
+  "rc_port": 5000
+}

@@ -1,8 +1,8 @@
 """Configuration loading for the StreamXpress MCP server.
 
-Users copy `config.example.json` to `config.json` at the project root and
-fill in the StreamXpress executable path (and optionally a custom SpRcApi
-path used as the WSDL source). Lookup order:
+`config.json` ships in the repository root with empty values — users
+edit it in place (and typically run `git update-index --skip-worktree
+config.json` so local path edits stay out of git). Lookup order:
   1. file path from env var STREAMXPRESS_MCP_CONFIG
   2. <project root>/config.json
   3. defaults (no file -> empty paths, rc_port=5000)

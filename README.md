@@ -18,10 +18,7 @@
 
 ## 配置文件
 
-MCP 支持通过项目根目录的 `config.json` 集中配置，在使用前填写：
-
-1. 复制 `config.example.json` 为 `config.json`（`config.json` 已被 git 忽略，不会提交）。
-2. 按需填写字段：
+MCP 通过项目根目录的 `config.json` 集中配置，本仓库已直接携带一份字段留空的 `config.json`——**编辑它即可**，无需复制模板：
 
 | 字段 | 说明 |
 |---|---|
@@ -29,7 +26,15 @@ MCP 支持通过项目根目录的 `config.json` 集中配置，在使用前填�
 | `sprc_api_path` | SpRcApi 目录路径，默认留空（使用包内自带 wsdl）；若填写，运行时优先使用 `<sprc_api_path>\WSDL\SpRc.wsdl` 作为 wsdl 来源 |
 | `rc_port` | 远程控制端口，默认 `5000` |
 
-查找顺序：环境变量 `STREAMXPRESS_MCP_CONFIG` 指定的文件 → 项目根 `config.json` → 默认值。配置文件缺失或字段留空时不报错，使用默认值。
+查找顺序：环境变量 `STREAMXPRESS_MCP_CONFIG` 指定的文件 → 项目根 `config.json` → 默认值。字段留空时使用默认值，不报错。
+
+> **让本地路径修改不进 git**：`config.json` 现在被 git 跟踪，直接编辑会出现在 `git status`。执行下面这一条即可让 git 忽略本地改动（仍保留仓库版本）：
+>
+> ```powershell
+> git update-index --skip-worktree config.json
+> ```
+>
+> 想取消：`git update-index --no-skip-worktree config.json`。
 
 > 若以非 editable 方式安装（`pip install .`），项目根定位不适用，请用环境变量 `STREAMXPRESS_MCP_CONFIG` 指定配置文件路径。
 

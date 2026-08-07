@@ -25,7 +25,7 @@ def launch_streamxpress(cfg: StreamXpressConfig) -> dict:
     if not cfg.streamxpress_path:
         return {
             "ok": False,
-            "error": "config.json 未配置 streamxpress_path，请先复制 config.example.json 为 config.json 并填写",
+            "error": "config.json 未配置 streamxpress_path，请编辑项目根 config.json 填写 StreamXpress 可执行文件路径",
         }
     exe = cfg.streamxpress_path
     if not Path(exe).is_file():

@@ -74,3 +74,15 @@ def test_resolve_wsdl_path_found(tmp_path):
     (wsdl_dir / "SpRc.wsdl").write_text("x", encoding="utf-8")
     cfg = config_mod.StreamXpressConfig(sprc_api_path=str(tmp_path))
     assert config_mod.resolve_wsdl_path(cfg) == str(wsdl_dir / "SpRc.wsdl")
+
+
+def test_repo_root_config_json_loads_as_defaults(monkeypatch):
+    """仓库自带的 config.json 必须字段留空、等价于文件缺失时的默认值。"""
+    monkeypatch.delenv(config_mod.ENV_VAR, raising=False)
+    assert config_mod.DEFAULT_CONFIG_PATH.is_file(), (
+        f"仓库根 config.json 不存在: {config_mod.DEFAULT_CONFIG_PATH}"
+    )
+    cfg = config_mod.load_config()
+    assert cfg.streamxpress_path == ""
+    assert cfg.sprc_api_path == ""
+    assert cfg.rc_port == 5000
