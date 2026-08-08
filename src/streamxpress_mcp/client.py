@@ -39,6 +39,17 @@ def _parse_ip(ip: str) -> bytes:
         raise ValueError(f"invalid IPv4 address: {ip!r}") from None
 
 
+# SOAP 层返回的错误码里，这些表示会话/传输已不可用，应把本地连接状态标记为失效。
+_TRANSPORT_ERROR_CODES = {SPRC_RESULT.E_COMMUNICATION, SPRC_RESULT.E_SESSION_NOT_OPEN}
+
+
+def _raise_sprc_error(e: SpRcException) -> None:
+    """把 SpRcException 转成带错误码名/值的可诊断 RuntimeError。"""
+    raise RuntimeError(
+        f"StreamXpress error {e.ErrorCode.name} ({e.ErrorCode.value}): {e or 'no detail'}"
+    ) from e
+
+
 class StreamXpressClient:
     """Thin wrapper managing a single SPRC_client SOAP session.
 
@@ -61,95 +72,115 @@ class StreamXpressClient:
         """
         if self._connected:
             raise RuntimeError("already connected — disconnect first")
-        self._sprc = self._sprc_factory()
-        self._sprc.open_session(ip_host=host, ip_port=port)
+        sprc = self._sprc_factory()
+        try:
+            sprc.open_session(ip_host=host, ip_port=port)
+        except SpRcException as e:
+            _raise_sprc_error(e)
+        self._sprc = sprc
         self._connected = True
 
     def disconnect(self) -> None:
-        """Close the session and clean up."""
+        """Close the session and clean up.
+
+        Local state is always reset; a failing cleanup (e.g. network drop while
+        closing) is reported as a RuntimeError instead of being swallowed, so
+        the caller can surface it while still being able to reconnect.
+        """
+        error = None
         if self._sprc is not None:
             try:
                 self._sprc.cleanup()
-            except Exception:
-                pass
+            except Exception as e:  # noqa: BLE001 — must still reset local state
+                error = e
             self._sprc = None
         self._connected = False
+        if error is not None:
+            raise RuntimeError(f"failed to close StreamXpress session: {error}") from error
 
     def _ensure_connected(self) -> SPRC_client:
         if not self._connected or self._sprc is None:
             raise RuntimeError("not connected — call connect() first")
         return self._sprc
 
+    def _sprc_call(self, fn):
+        """Run a lower-layer call on the connected session with unified error handling.
+
+        - SpRcException → RuntimeError carrying the error-code name/value;
+        - transport failures (E_COMMUNICATION / E_SESSION_NOT_OPEN / OSError)
+          mark the local session stale so the next call reports a clear
+          "not connected" instead of a blank SOAP failure.
+        """
+        sprc = self._ensure_connected()
+        try:
+            return fn(sprc)
+        except SpRcException as e:
+            if e.ErrorCode in _TRANSPORT_ERROR_CODES:
+                self._connected = False
+            _raise_sprc_error(e)
+        except OSError as e:
+            self._connected = False
+            raise RuntimeError(f"StreamXpress communication error: {e}") from e
+
     # ── Port discovery ──
 
     def scan_ports(self) -> list[SpRcPortDesc]:
-        sprc = self._ensure_connected()
-        return sprc.scan_ports()
+        return self._sprc_call(lambda s: s.scan_ports())
 
     def select_port(self, serial: int, port_num: int, modulation: int = 0) -> None:
-        sprc = self._ensure_connected()
-        sprc.select_port(serial, port_num, modulation)
+        self._sprc_call(lambda s: s.select_port(serial, port_num, modulation))
 
     # ── File & playout ──
 
     def open_file(self, filepath: str) -> None:
-        sprc = self._ensure_connected()
-        sprc.open_file(filepath)
+        self._sprc_call(lambda s: s.open_file(filepath))
 
     def open_channel_modelling_file(self, filepath: str) -> None:
-        sprc = self._ensure_connected()
-        sprc.open_channel_modelling_file(filepath)
+        self._sprc_call(lambda s: s.open_channel_modelling_file(filepath))
 
     def save_channel_modelling_settings(self, filepath: str) -> None:
-        sprc = self._ensure_connected()
-        sprc.save_channel_modelling_settings(filepath)
+        self._sprc_call(lambda s: s.save_channel_modelling_settings(filepath))
 
     def save_settings(self, filepath: str) -> None:
-        sprc = self._ensure_connected()
-        sprc.save_settings(filepath)
+        self._sprc_call(lambda s: s.save_settings(filepath))
 
     def normalise(self) -> None:
-        sprc = self._ensure_connected()
-        sprc.normalise()
+        self._sprc_call(lambda s: s.normalise())
 
     def start(self) -> None:
-        sprc = self._ensure_connected()
-        sprc.set_playout_state(SPRC.STATE_PLAY)
+        self._sprc_call(lambda s: s.set_playout_state(SPRC.STATE_PLAY))
 
     def stop(self) -> None:
-        sprc = self._ensure_connected()
-        sprc.set_playout_state(SPRC.STATE_STOP)
+        self._sprc_call(lambda s: s.set_playout_state(SPRC.STATE_STOP))
 
     # ── Session & version ──
 
     def get_remote_version(self) -> dict:
-        sprc = self._ensure_connected()
-        return _to_dict(sprc.get_remote_version())
+        return self._sprc_call(lambda s: _to_dict(s.get_remote_version()))
 
     def get_remote_dtapi_version(self) -> dict:
-        sprc = self._ensure_connected()
-        return _to_dict(sprc.get_remote_dtapi_version())
+        return self._sprc_call(lambda s: _to_dict(s.get_remote_dtapi_version()))
 
     def get_app_info(self) -> dict:
-        sprc = self._ensure_connected()
-        name, version = sprc.get_app_info()
-        return {"app_name": name, "version": _to_dict(version)}
+        def _call(s):
+            name, version = s.get_app_info()
+            return {"app_name": name, "version": _to_dict(version)}
+
+        return self._sprc_call(_call)
 
     def show_window(self, show: bool) -> None:
-        sprc = self._ensure_connected()
-        sprc.show_window(show)
+        self._sprc_call(lambda s: s.show_window(show))
 
     def clear_errors(self) -> None:
-        sprc = self._ensure_connected()
-        sprc.clear_errors()
+        self._sprc_call(lambda s: s.clear_errors())
 
     # ── Status ──
 
     def get_status(self) -> dict:
-        sprc = self._ensure_connected()
-        status = sprc.get_playout_status()
-        info = sprc.get_playout_info()
-        return {
+        def _call(s):
+            status = s.get_playout_status()
+            info = s.get_playout_info()
+            return {
             "position_percent": round(status.PosRel * 100, 1),
             "num_wraps": status.NumWraps,
             "num_errors": status.NumErrors,
@@ -165,83 +196,67 @@ class StreamXpressClient:
             "loop_flags": info.LoopFlags,
             "remux": info.Remux,
             "tp_size": info.TpSize,
-        }
+            }
+
+        return self._sprc_call(_call)
 
     # ── Parameter getters ──
 
     def get_asi_pars(self) -> dict:
-        sprc = self._ensure_connected()
-        return _to_dict(sprc.get_asi_pars())
+        return self._sprc_call(lambda s: _to_dict(s.get_asi_pars()))
 
     def get_cmmb_pars(self) -> dict:
-        sprc = self._ensure_connected()
-        return _to_dict(sprc.get_cmmb_pars())
+        return self._sprc_call(lambda s: _to_dict(s.get_cmmb_pars()))
 
     def get_mod_pars(self) -> dict:
-        sprc = self._ensure_connected()
-        return _to_dict(sprc.get_mod_pars())
+        return self._sprc_call(lambda s: _to_dict(s.get_mod_pars()))
 
     def get_rf_pars(self) -> dict:
-        sprc = self._ensure_connected()
-        return _to_dict(sprc.get_rf_pars())
+        return self._sprc_call(lambda s: _to_dict(s.get_rf_pars()))
 
     def get_tsoip_pars(self) -> dict:
-        sprc = self._ensure_connected()
-        return _to_dict(sprc.get_tsoip_pars())
+        return self._sprc_call(lambda s: _to_dict(s.get_tsoip_pars()))
 
     def get_spi_pars(self) -> dict:
-        sprc = self._ensure_connected()
-        return _to_dict(sprc.get_spi_pars())
+        return self._sprc_call(lambda s: _to_dict(s.get_spi_pars()))
 
     def get_hw_noise_pars(self) -> dict:
-        sprc = self._ensure_connected()
-        return _to_dict(sprc.get_hw_noise_pars())
+        return self._sprc_call(lambda s: _to_dict(s.get_hw_noise_pars()))
 
     def get_iq_gain(self) -> int:
-        sprc = self._ensure_connected()
-        return sprc.get_iq_gain()
+        return self._sprc_call(lambda s: s.get_iq_gain())
 
     def get_signal_source(self) -> int:
-        sprc = self._ensure_connected()
-        return sprc.get_signal_source()
+        return self._sprc_call(lambda s: s.get_signal_source())
 
     def get_use_nit(self) -> bool:
-        sprc = self._ensure_connected()
-        return sprc.get_use_nit()
+        return self._sprc_call(lambda s: s.get_use_nit())
 
     def get_channel_modelling_pars(self) -> dict:
-        sprc = self._ensure_connected()
-        return _to_dict(sprc.get_channel_modelling_pars())
+        return self._sprc_call(lambda s: _to_dict(s.get_channel_modelling_pars()))
 
     def get_dvb_t2_group(self) -> dict:
-        sprc = self._ensure_connected()
-        return _to_dict(sprc.get_dvb_t2_group())
+        return self._sprc_call(lambda s: _to_dict(s.get_dvb_t2_group()))
 
     def get_dvb_t2_pars(self) -> dict:
-        sprc = self._ensure_connected()
-        return _to_dict(sprc.get_dvb_t2_pars())
+        return self._sprc_call(lambda s: _to_dict(s.get_dvb_t2_pars()))
 
     def get_isdb_t_pars(self) -> dict:
-        sprc = self._ensure_connected()
-        return _to_dict(sprc.get_isdb_t_pars())
+        return self._sprc_call(lambda s: _to_dict(s.get_isdb_t_pars()))
 
     def get_tdt_adapt_pars(self) -> dict:
-        sprc = self._ensure_connected()
-        return _to_dict(sprc.get_tdt_adapt_pars())
+        return self._sprc_call(lambda s: _to_dict(s.get_tdt_adapt_pars()))
 
     def get_tsg_pars(self) -> dict:
-        sprc = self._ensure_connected()
-        return _to_dict(sprc.get_tsg_pars())
+        return self._sprc_call(lambda s: _to_dict(s.get_tsg_pars()))
 
     def get_sfn_status(self) -> dict:
-        sprc = self._ensure_connected()
-        return _to_dict(sprc.get_sfn_status())
+        return self._sprc_call(lambda s: _to_dict(s.get_sfn_status()))
 
     # ── Parameters ──
 
     def set_rate(self, bps: int) -> None:
-        sprc = self._ensure_connected()
-        sprc.set_ts_rate(bps)
+        self._sprc_call(lambda s: s.set_ts_rate(bps))
 
     def set_tsoip_params(
         self,
@@ -258,10 +273,12 @@ class StreamXpressClient:
         dest_port2: int = 0,
         diff_serv: int = 0,
     ) -> None:
-        sprc = self._ensure_connected()
         ip_bytes = _parse_ip(dest_ip)
         ip2_bytes = _parse_ip(dest_ip2) if dest_ip2 else bytes([0, 0, 0, 0])
-        proto_const = DTAPI.PROTO_UDP if protocol.upper() == "UDP" else DTAPI.PROTO_RTP
+        protocol_upper = protocol.upper()
+        if protocol_upper not in ("UDP", "RTP"):
+            raise ValueError(f"invalid protocol: {protocol!r} — must be 'UDP' or 'RTP'")
+        proto_const = DTAPI.PROTO_UDP if protocol_upper == "UDP" else DTAPI.PROTO_RTP
         fec_mode = DTAPI.FEC_DISABLE if (fec_rows == 0 or fec_cols == 0) else DTAPI.FEC_2D
 
         pars = SpRcTsoipPars(
@@ -279,12 +296,11 @@ class StreamXpressClient:
             FecNumRows=fec_rows,
             FecNumCols=fec_cols,
         )
-        sprc.set_tsiop_pars(pars)
+        self._sprc_call(lambda s: s.set_tsiop_pars(pars))
 
     def set_rf_params(self, frequency_hz: int, level_dbm: float) -> None:
-        sprc = self._ensure_connected()
         pars = SpRcRfPars(Frequency=frequency_hz, Level=level_dbm)
-        sprc.set_rf_pars(pars)
+        self._sprc_call(lambda s: s.set_rf_pars(pars))
 
     def set_asi_params(
         self,
@@ -294,7 +310,6 @@ class StreamXpressClient:
         burst_mode: bool = False,
         polarity: int = DTAPI.TXPOL_NORMAL,
     ) -> None:
-        sprc = self._ensure_connected()
         pars = SpRcAsiPars(
             Remux=remux,
             PlayoutRate=playout_rate,
@@ -302,105 +317,97 @@ class StreamXpressClient:
             TxMode=tx_mode,
             Polarity=polarity,
         )
-        sprc.set_asi_pars(pars)
+        self._sprc_call(lambda s: s.set_asi_pars(pars))
 
     def set_loop_flags(self, flags: int) -> None:
-        sprc = self._ensure_connected()
-        sprc.set_loop_flags(flags)
+        self._sprc_call(lambda s: s.set_loop_flags(flags))
 
     def set_iq_gain(self, gain: int) -> None:
-        sprc = self._ensure_connected()
-        sprc.set_iq_gain(gain)
+        self._sprc_call(lambda s: s.set_iq_gain(gain))
 
     def set_remux(self, enabled: bool) -> None:
-        sprc = self._ensure_connected()
-        sprc.set_remux(enabled)
+        self._sprc_call(lambda s: s.set_remux(enabled))
 
     def set_signal_source(self, source: int) -> None:
-        sprc = self._ensure_connected()
-        sprc.set_signal_source(source)
+        self._sprc_call(lambda s: s.set_signal_source(source))
 
     def set_use_nit(self, use_nit: bool) -> None:
-        sprc = self._ensure_connected()
-        sprc.set_use_nit(use_nit)
+        self._sprc_call(lambda s: s.set_use_nit(use_nit))
 
     def set_sfn_mode(self, sfn_mode: int) -> None:
-        sprc = self._ensure_connected()
-        sprc.set_sfn_mode(sfn_mode)
+        self._sprc_call(lambda s: s.set_sfn_mode(sfn_mode))
 
     def set_sub_loop_pars(
         self, use_subloop: bool, loop_begin_rel: float = 0.0, loop_end_rel: float = 1.0
     ) -> None:
-        sprc = self._ensure_connected()
-        sprc.set_sub_loop_pars(
-            SpRcSubLoopPars(
-                UseSubLoop=use_subloop,
-                LoopBeginRel=loop_begin_rel,
-                LoopEndRel=loop_end_rel,
+        self._sprc_call(
+            lambda s: s.set_sub_loop_pars(
+                SpRcSubLoopPars(
+                    UseSubLoop=use_subloop,
+                    LoopBeginRel=loop_begin_rel,
+                    LoopEndRel=loop_end_rel,
+                )
             )
         )
 
     def select_dta_plus(self, use_dta_plus: bool, serial: int) -> None:
-        sprc = self._ensure_connected()
-        sprc.select_dta_plus(use_dta_plus, serial)
+        self._sprc_call(lambda s: s.select_dta_plus(use_dta_plus, serial))
 
     def set_cmmb_pars(self, pars: dict) -> None:
-        sprc = self._ensure_connected()
-        sprc.set_cmmb_pars(SpRcCmmbPars(**pars))
+        self._sprc_call(lambda s: s.set_cmmb_pars(SpRcCmmbPars(**pars)))
 
     def set_hw_noise_pars(self, pars: dict) -> None:
-        sprc = self._ensure_connected()
-        sprc.set_hw_noise_pars(SpRcHwNoisePars(**pars))
+        self._sprc_call(lambda s: s.set_hw_noise_pars(SpRcHwNoisePars(**pars)))
 
     def set_spi_pars(self, pars: dict) -> None:
-        sprc = self._ensure_connected()
-        sprc.set_spi_pars(SpRcSpiPars(**pars))
+        self._sprc_call(lambda s: s.set_spi_pars(SpRcSpiPars(**pars)))
 
     def set_tsg_pars(self, pars: dict) -> None:
-        sprc = self._ensure_connected()
-        sprc.set_tsg_pars(SpRcTsgPars(**pars))
+        self._sprc_call(lambda s: s.set_tsg_pars(SpRcTsgPars(**pars)))
 
     def set_dvb_t2_group(self, pars: dict) -> None:
-        sprc = self._ensure_connected()
-        sprc.set_dvb_t2_group(SpRcDvbT2Group(**pars))
+        self._sprc_call(lambda s: s.set_dvb_t2_group(SpRcDvbT2Group(**pars)))
 
     def set_mod_pars(self, pars: dict) -> None:
-        sprc = self._ensure_connected()
-        sprc.set_mod_pars(SpRcModPars(**pars))
+        self._sprc_call(lambda s: s.set_mod_pars(SpRcModPars(**pars)))
 
     def set_channel_modelling_pars(self, pars: dict) -> None:
-        sprc = self._ensure_connected()
-        paths = [SpRcCmPath(**p) for p in pars.get("Paths", [])]
+        paths = [SpRcCmPath(**p) for p in (pars.get("Paths") or [])]
         cm_pars = SpRcCmPars(**{k: v for k, v in pars.items() if k != "Paths"}, Paths=paths)
-        sprc.set_channel_modelling_pars(cm_pars)
+        self._sprc_call(lambda s: s.set_channel_modelling_pars(cm_pars))
 
     def set_dvb_t2_pars(self, pars: dict) -> None:
-        sprc = self._ensure_connected()
-        sprc.set_dvb_t2_pars(SpRcDvbT2Pars(**pars))
+        self._sprc_call(lambda s: s.set_dvb_t2_pars(SpRcDvbT2Pars(**pars)))
 
     def set_isdb_t_pars(self, pars: dict) -> None:
-        sprc = self._ensure_connected()
-        layer_pars = [SpRcIsdbtLayerPars(**lp) for lp in pars.get("LayerPars", [])]
+        layer_pars = [SpRcIsdbtLayerPars(**lp) for lp in (pars.get("LayerPars") or [])]
+        pid_layer = {}
+        for k, v in (pars.get("Pid2Layer") or {}).items():
+            pk = int(k)
+            if pk in pid_layer:
+                raise ValueError(f"duplicate PID in Pid2Layer: {pk!r}")
+            pid_layer[pk] = v
         isdbt_pars = SpRcIsdbtPars(
             **{k: v for k, v in pars.items() if k not in ("LayerPars", "Pid2Layer")},
             LayerPars=layer_pars,
-            Pid2Layer={int(k): v for k, v in (pars.get("Pid2Layer") or {}).items()},
+            Pid2Layer=pid_layer,
         )
-        sprc.set_isdb_t_pars(isdbt_pars)
+        self._sprc_call(lambda s: s.set_isdb_t_pars(isdbt_pars))
 
     def set_tdt_adapt_pars(self, pars: dict) -> None:
-        sprc = self._ensure_connected()
         dt = SpRcDateTime(**(pars.get("TdtDateTime") or {}))
-        sprc.set_tdt_adapt_pars(
-            SpRcTdtAdaptPars(TdtAdaptMode=pars["TdtAdaptMode"], TdtDateTime=dt)
+        self._sprc_call(
+            lambda s: s.set_tdt_adapt_pars(
+                SpRcTdtAdaptPars(TdtAdaptMode=pars["TdtAdaptMode"], TdtDateTime=dt)
+            )
         )
 
     def set_playout_state_sfn(self, playout_state: int, sfn_start_time: int = 0) -> None:
-        sprc = self._ensure_connected()
-        sprc.set_playout_state_sfn(
-            SpRcPlayoutSfnPars(PlayoutState=playout_state, SfnStartTime=sfn_start_time)
+        self._sprc_call(
+            lambda s: s.set_playout_state_sfn(
+                SpRcPlayoutSfnPars(PlayoutState=playout_state, SfnStartTime=sfn_start_time)
+            )
         )
 
     def wait_for_condition(self, condition: int, timeout_ms: int = -1) -> None:
-        sprc = self._ensure_connected()
-        sprc.wait_for_condition(condition, timeout_ms)
+        self._sprc_call(lambda s: s.wait_for_condition(condition, timeout_ms))

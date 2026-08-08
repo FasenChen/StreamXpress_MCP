@@ -56,8 +56,13 @@ def connect(host: str, port: int) -> dict:
 def disconnect() -> dict:
     """Disconnect from the StreamXpress remote-control session."""
     client = get_client()
-    client.disconnect()
-    return {"status": "disconnected"}
+    try:
+        client.disconnect()
+        return {"status": "disconnected"}
+    except RuntimeError as e:
+        # Session cleanup failed (e.g. network drop) — local state is reset
+        # regardless, so report the warning without turning it into a failure.
+        return {"status": "disconnected", "warning": str(e)}
 
 
 @mcp.tool()
@@ -579,7 +584,10 @@ def set_mod_pars(mod_pars: dict) -> dict:
     """Set modulation parameters for the selected modulator port.
 
     Args:
-        mod_pars: dict with keys ModType (SPRC.MOD_*), ParXtra0/1/2 (int), SymRate (int baud, -1 if unused).
+        mod_pars: dict with keys ModType (DTAPI.MOD_* — NOT SPRC.MOD_*, the two
+                  namespaces have different values; SPRC.MOD_* is only for
+                  select_port's modulation argument), ParXtra0/1/2 (int),
+                  SymRate (int baud, -1 if unused).
     """
     client = get_client()
     client.set_mod_pars(mod_pars)

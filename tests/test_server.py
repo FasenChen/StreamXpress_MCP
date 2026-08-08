@@ -750,12 +750,12 @@ class TestClientComplexSetters:
         client.connect("http://localhost", 5000)
 
     def test_set_mod_pars(self, client, mock_sprc):
-        from streamxpress_mcp.sprc_import import SPRC
+        from streamxpress_mcp.sprc_import import DTAPI
 
         self._connect(client)
-        client.set_mod_pars({"ModType": SPRC.MOD_DVBS2, "ParXtra0": 0, "ParXtra1": 0, "ParXtra2": 0, "SymRate": 27_500_000})
+        client.set_mod_pars({"ModType": DTAPI.MOD_DVBS2, "ParXtra0": 0, "ParXtra1": 0, "ParXtra2": 0, "SymRate": 27_500_000})
         call_args = mock_sprc.set_mod_pars.call_args[0][0]
-        assert call_args.ModType == SPRC.MOD_DVBS2
+        assert call_args.ModType == DTAPI.MOD_DVBS2
         assert call_args.SymRate == 27_500_000
 
     def test_set_channel_modelling_pars_with_paths(self, client, mock_sprc):
@@ -941,3 +941,53 @@ class TestEnhancedParams:
         assert status["loop_flags"] == 3
         assert status["file_size"] == 1024
         assert status["tp_size"] == 188
+
+
+class TestErrorBoundary:
+    """Wrapper 错误转换边界：SpRcException 可诊断化、传输故障断连、disconnect 暴露失败。"""
+
+    def test_sprc_exception_becomes_diagnosable_runtime_error(self, client, mock_sprc):
+        from streamxpress_mcp.sprc_import import SpRcException, SPRC_RESULT
+
+        mock_sprc.scan_ports.side_effect = SpRcException(SPRC_RESULT.E_NO_LICK)
+        client.connect("http://localhost", 5000)
+        with pytest.raises(RuntimeError, match="E_NO_LICK"):
+            client.scan_ports()
+
+    def test_transport_error_marks_session_stale(self, client, mock_sprc):
+        from streamxpress_mcp.sprc_import import SpRcException, SPRC_RESULT
+
+        mock_sprc.get_playout_status.side_effect = SpRcException(SPRC_RESULT.E_COMMUNICATION)
+        client.connect("http://localhost", 5000)
+        with pytest.raises(RuntimeError, match="E_COMMUNICATION"):
+            client.get_status()
+        assert client._connected is False
+        with pytest.raises(RuntimeError, match="not connected"):
+            client.scan_ports()
+
+    def test_oserror_marks_session_stale(self, client, mock_sprc):
+        mock_sprc.get_playout_status.side_effect = OSError("network unreachable")
+        client.connect("http://localhost", 5000)
+        with pytest.raises(RuntimeError, match="network unreachable"):
+            client.get_status()
+        assert client._connected is False
+
+    def test_disconnect_reports_cleanup_failure(self, client, mock_sprc):
+        mock_sprc.cleanup.side_effect = OSError("connection reset")
+        client.connect("http://localhost", 5000)
+        with pytest.raises(RuntimeError, match="failed to close"):
+            client.disconnect()
+        # 本地状态仍被无条件重置
+        assert client._connected is False
+        assert client._sprc is None
+
+    @patch("streamxpress_mcp.server.get_client")
+    def test_disconnect_tool_surfaces_warning(self, mock_get_client):
+        mock_client = MagicMock()
+        mock_client.disconnect.side_effect = RuntimeError(
+            "failed to close StreamXpress session: boom")
+        mock_get_client.return_value = mock_client
+        from streamxpress_mcp.server import disconnect
+        result = disconnect()
+        assert result["status"] == "disconnected"
+        assert "failed to close" in result["warning"]
