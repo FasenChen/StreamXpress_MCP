@@ -166,6 +166,42 @@ def open_file(filepath: str) -> dict:
     return {"status": "ok", "file": filepath}
 
 
+@mcp.tool()
+def open_channel_modelling_file(filepath: str) -> dict:
+    """Open a channel modelling settings file (.chmx) on the server.
+
+    Args:
+        filepath: Full path on the StreamXpress host machine.
+    """
+    client = get_client()
+    client.open_channel_modelling_file(filepath)
+    return {"status": "ok", "file": filepath}
+
+
+@mcp.tool()
+def save_channel_modelling_settings(filepath: str) -> dict:
+    """Save the current channel modelling settings to a .chmx file on the server."""
+    client = get_client()
+    client.save_channel_modelling_settings(filepath)
+    return {"status": "ok", "file": filepath}
+
+
+@mcp.tool()
+def save_settings(filepath: str) -> dict:
+    """Save all current StreamXpress settings to an .xml settings file on the server."""
+    client = get_client()
+    client.save_settings(filepath)
+    return {"status": "ok", "file": filepath}
+
+
+@mcp.tool()
+def normalise() -> dict:
+    """Normalise the output level to the modulation standard's reference level."""
+    client = get_client()
+    client.normalise()
+    return {"status": "ok"}
+
+
 # ── Playback control tools ──
 
 @mcp.tool()

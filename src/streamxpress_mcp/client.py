@@ -80,6 +80,22 @@ class StreamXpressClient:
         sprc = self._ensure_connected()
         sprc.open_file(filepath)
 
+    def open_channel_modelling_file(self, filepath: str) -> None:
+        sprc = self._ensure_connected()
+        sprc.open_channel_modelling_file(filepath)
+
+    def save_channel_modelling_settings(self, filepath: str) -> None:
+        sprc = self._ensure_connected()
+        sprc.save_channel_modelling_settings(filepath)
+
+    def save_settings(self, filepath: str) -> None:
+        sprc = self._ensure_connected()
+        sprc.save_settings(filepath)
+
+    def normalise(self) -> None:
+        sprc = self._ensure_connected()
+        sprc.normalise()
+
     def start(self) -> None:
         sprc = self._ensure_connected()
         sprc.set_playout_state(SPRC.STATE_PLAY)

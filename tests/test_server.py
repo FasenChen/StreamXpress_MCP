@@ -265,6 +265,8 @@ EXPECTED_TOOL_NAMES = {
     "get_signal_source", "get_use_nit",
     "get_channel_modelling_pars", "get_dvb_t2_group", "get_dvb_t2_pars",
     "get_isdb_t_pars", "get_tdt_adapt_pars", "get_tsg_pars", "get_sfn_status",
+    "open_channel_modelling_file", "save_channel_modelling_settings",
+    "save_settings", "normalise",
 }
 
 
@@ -557,3 +559,48 @@ class TestServerComplexGetterTools:
         from streamxpress_mcp import server as server_mod
         tool = getattr(server_mod, tool_name)
         assert tool() == getattr(mock_client, method).return_value
+
+
+class TestClientFileSettings:
+    def _connect(self, client):
+        client.connect("http://localhost", 5000)
+
+    def test_open_channel_modelling_file(self, client, mock_sprc):
+        self._connect(client)
+        client.open_channel_modelling_file("C:\\cm\\model.chmx")
+        mock_sprc.open_channel_modelling_file.assert_called_once_with("C:\\cm\\model.chmx")
+
+    def test_save_settings(self, client, mock_sprc):
+        self._connect(client)
+        client.save_settings("C:\\cfg\\settings.xml")
+        mock_sprc.save_settings.assert_called_once_with("C:\\cfg\\settings.xml")
+
+    def test_normalise(self, client, mock_sprc):
+        self._connect(client)
+        client.normalise()
+        mock_sprc.normalise.assert_called_once()
+
+
+class TestServerFileSettingsTools:
+    @pytest.mark.parametrize("tool_name,method,extra_kwargs", [
+        ("open_channel_modelling_file", "open_channel_modelling_file", {"filepath": "C:\\cm\\model.chmx"}),
+        ("save_channel_modelling_settings", "save_channel_modelling_settings", {"filepath": "C:\\cm\\model.chmx"}),
+        ("save_settings", "save_settings", {"filepath": "C:\\cfg\\settings.xml"}),
+    ])
+    @patch("streamxpress_mcp.server.get_client")
+    def test_file_tool_returns_ok(self, mock_get_client, tool_name, method, extra_kwargs):
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
+        from streamxpress_mcp import server as server_mod
+        tool = getattr(server_mod, tool_name)
+        result = tool(**extra_kwargs)
+        assert result["status"] == "ok"
+        getattr(mock_client, method).assert_called_once()
+
+    @patch("streamxpress_mcp.server.get_client")
+    def test_normalise_tool(self, mock_get_client):
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
+        from streamxpress_mcp.server import normalise
+        assert normalise() == {"status": "ok"}
+        mock_client.normalise.assert_called_once()
