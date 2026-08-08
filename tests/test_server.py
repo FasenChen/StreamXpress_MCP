@@ -377,6 +377,27 @@ class TestSerializationHelpers:
         assert SpRcVersion(MajorVersion=1, MinorVersion=2, BugFixVersion=3, BuildNumber=4).MajorVersion == 1
         assert SpRcCmmbPars(Bandwidth=0, AreaId=1, TxId=2).AreaId == 1
 
+    def test_parse_ip_valid(self):
+        from streamxpress_mcp.client import _parse_ip
+
+        assert _parse_ip("239.1.1.1") == bytes([239, 1, 1, 1])
+
+    def test_parse_ip_rejects_wrong_segment_count(self):
+        import pytest
+
+        from streamxpress_mcp.client import _parse_ip
+
+        with pytest.raises(ValueError, match="invalid IPv4"):
+            _parse_ip("1.2.3")
+
+    def test_parse_ip_rejects_non_numeric_octet(self):
+        import pytest
+
+        from streamxpress_mcp.client import _parse_ip
+
+        with pytest.raises(ValueError, match="invalid IPv4"):
+            _parse_ip("1.2.x.4")
+
 
 class TestClientSessionVersion:
     def test_get_remote_version(self, client, mock_sprc):
@@ -786,6 +807,28 @@ class TestClientComplexSetters:
         assert call_args.Pid2Layer == {100: 1}
         assert call_args.LayerPars[0].NumSegments == 13
 
+    def test_set_isdb_t_pars_string_pid_keys(self, client, mock_sprc):
+        """MCP JSON 透传后 Pid2Layer 键是 str，必须转回 int 才能进 xsd:int 字段。"""
+        self._connect(client)
+        client.set_isdb_t_pars({
+            "DoMux": True, "BType": 0, "Mode": 3, "Guard": 2, "PartialRx": 0,
+            "Emergency": 0, "IipPid": 0,
+            "LayerPars": [], "Pid2Layer": {"100": 1}, "LayerOther": 0, "ParXtra0": 0,
+        })
+        call_args = mock_sprc.set_isdb_t_pars.call_args[0][0]
+        assert call_args.Pid2Layer == {100: 1}
+
+    def test_set_isdb_t_pars_missing_pid2layer(self, client, mock_sprc):
+        """Pid2Layer 缺失或为 None 时应回退为空 dict，而不是崩溃。"""
+        self._connect(client)
+        client.set_isdb_t_pars({
+            "DoMux": True, "BType": 0, "Mode": 3, "Guard": 2, "PartialRx": 0,
+            "Emergency": 0, "IipPid": 0,
+            "LayerPars": [], "Pid2Layer": None, "LayerOther": 0, "ParXtra0": 0,
+        })
+        call_args = mock_sprc.set_isdb_t_pars.call_args[0][0]
+        assert call_args.Pid2Layer == {}
+
     def test_set_dvb_t2_pars(self, client, mock_sprc):
         from streamxpress_mcp.sprc_import import SPRC, DTAPI
 
@@ -813,9 +856,9 @@ class TestServerComplexSetterTools:
     @pytest.mark.parametrize("tool_name,arg_name,arg_value", [
         ("set_mod_pars", "mod_pars", {"ModType": 6, "ParXtra0": 0, "ParXtra1": 0, "ParXtra2": 0, "SymRate": 27_500_000}),
         ("set_channel_modelling_pars", "cm_pars", {"CmEnable": True, "AwgnEnable": True, "Snr": 20.0, "PathsEnable": False, "Paths": []}),
-        ("set_dvb_t2_pars", "dvb_t2_pars", {}),
-        ("set_isdb_t_pars", "isdb_t_pars", {}),
-        ("set_tdt_adapt_pars", "tdt_adapt_pars", {"TdtAdaptMode": 2, "TdtDateTime": {}}),
+        ("set_dvb_t2_pars", "dvb_t2_pars", {"Bandwidth": 4, "FftMode": 3, "GuardInterval": 1, "NumT2Frames": 2, "NumDataSyms": 60, "L1Modulation": 1, "Frequency": 500_000_000, "FollowMode": 0}),
+        ("set_isdb_t_pars", "isdb_t_pars", {"DoMux": True, "BType": 0, "Mode": 3, "Guard": 2, "PartialRx": 0, "Emergency": 0, "IipPid": 0, "LayerPars": [], "Pid2Layer": {}, "LayerOther": 0, "ParXtra0": 0}),
+        ("set_tdt_adapt_pars", "tdt_adapt_pars", {"TdtAdaptMode": 2, "TdtDateTime": {"Year": 2026, "Month": 8, "Day": 8, "Hour": 12, "Minute": 0, "Second": 0}}),
     ])
     @patch("streamxpress_mcp.server.get_client")
     def test_complex_setter_tool_returns_ok(self, mock_get_client, tool_name, arg_name, arg_value):

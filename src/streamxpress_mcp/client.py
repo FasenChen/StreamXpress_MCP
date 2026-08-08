@@ -28,6 +28,17 @@ def _to_dict(obj) -> dict:
     return _jsonable(asdict(obj))
 
 
+def _parse_ip(ip: str) -> bytes:
+    """Parse a dotted IPv4 string into exactly 4 bytes, validating octets."""
+    octets = ip.split(".")
+    if len(octets) != 4:
+        raise ValueError(f"invalid IPv4 address: {ip!r}")
+    try:
+        return bytes(int(o) for o in octets)
+    except ValueError:
+        raise ValueError(f"invalid IPv4 address: {ip!r}") from None
+
+
 class StreamXpressClient:
     """Thin wrapper managing a single SPRC_client SOAP session.
 
@@ -248,8 +259,8 @@ class StreamXpressClient:
         diff_serv: int = 0,
     ) -> None:
         sprc = self._ensure_connected()
-        ip_bytes = bytes(int(octet) for octet in dest_ip.split("."))
-        ip2_bytes = bytes(int(o) for o in dest_ip2.split(".")) if dest_ip2 else bytes([0, 0, 0, 0])
+        ip_bytes = _parse_ip(dest_ip)
+        ip2_bytes = _parse_ip(dest_ip2) if dest_ip2 else bytes([0, 0, 0, 0])
         proto_const = DTAPI.PROTO_UDP if protocol.upper() == "UDP" else DTAPI.PROTO_RTP
         fec_mode = DTAPI.FEC_DISABLE if (fec_rows == 0 or fec_cols == 0) else DTAPI.FEC_2D
 
@@ -373,7 +384,7 @@ class StreamXpressClient:
         isdbt_pars = SpRcIsdbtPars(
             **{k: v for k, v in pars.items() if k not in ("LayerPars", "Pid2Layer")},
             LayerPars=layer_pars,
-            Pid2Layer=pars.get("Pid2Layer", {}),
+            Pid2Layer={int(k): v for k, v in (pars.get("Pid2Layer") or {}).items()},
         )
         sprc.set_isdb_t_pars(isdbt_pars)
 
