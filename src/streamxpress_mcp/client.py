@@ -368,3 +368,7 @@ class StreamXpressClient:
         sprc.set_playout_state_sfn(
             SpRcPlayoutSfnPars(PlayoutState=playout_state, SfnStartTime=sfn_start_time)
         )
+
+    def wait_for_condition(self, condition: int, timeout_ms: int = -1) -> None:
+        sprc = self._ensure_connected()
+        sprc.wait_for_condition(condition, timeout_ms)

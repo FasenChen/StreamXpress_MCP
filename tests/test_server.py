@@ -273,6 +273,7 @@ EXPECTED_TOOL_NAMES = {
     "set_dvb_t2_group",
     "set_mod_pars", "set_channel_modelling_pars", "set_dvb_t2_pars",
     "set_isdb_t_pars", "set_tdt_adapt_pars", "set_playout_state_sfn",
+    "wait_for_condition",
 }
 
 
@@ -832,3 +833,21 @@ class TestServerComplexSetterTools:
         assert set_playout_state_sfn(playout_state=1, sfn_start_time=500_000_000) == {
             "status": "ok", "playout_state": 1, "sfn_start_time": 500_000_000}
         mock_client.set_playout_state_sfn.assert_called_once_with(1, 500_000_000)
+
+
+class TestWaitForCondition:
+    def test_client_wait_for_condition(self, client, mock_sprc):
+        from streamxpress_mcp.sprc_import import SPRC
+
+        client.connect("http://localhost", 5000)
+        client.wait_for_condition(SPRC.COND_STOPPED, 10_000)
+        mock_sprc.wait_for_condition.assert_called_once_with(SPRC.COND_STOPPED, 10_000)
+
+    @patch("streamxpress_mcp.server.get_client")
+    def test_tool_wait_for_condition(self, mock_get_client):
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
+        from streamxpress_mcp.server import wait_for_condition
+        result = wait_for_condition(condition=1, timeout_ms=-1)
+        assert result == {"status": "ok", "condition": 1}
+        mock_client.wait_for_condition.assert_called_once_with(1, -1)

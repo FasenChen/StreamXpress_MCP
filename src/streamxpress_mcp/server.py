@@ -632,6 +632,21 @@ def set_playout_state_sfn(playout_state: int, sfn_start_time: int = 0) -> dict:
     return {"status": "ok", "playout_state": playout_state, "sfn_start_time": sfn_start_time}
 
 
+@mcp.tool()
+def wait_for_condition(condition: int, timeout_ms: int = -1) -> dict:
+    """Block until the playout server reports a condition, or the timeout elapses.
+
+    Args:
+        condition: SPRC.COND_STOPPED=1 (player is in stopped state).
+        timeout_ms: Wait timeout in ms; -1 (default) waits forever.
+
+    Warning: this call blocks the MCP server until the condition is met.
+    """
+    client = get_client()
+    client.wait_for_condition(condition, timeout_ms)
+    return {"status": "ok", "condition": condition}
+
+
 # ── Launch tool ──
 
 @mcp.tool()
