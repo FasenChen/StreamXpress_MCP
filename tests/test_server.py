@@ -52,8 +52,8 @@ class TestStreamXpressPortOps:
 
     def test_select_port(self, client, mock_sprc):
         client.connect("http://localhost", 5000)
-        client.select_port(217400001, 1, 0)
-        mock_sprc.select_port.assert_called_once_with(217400001, 1, 0)
+        client.select_port(217400001, 1, 1)
+        mock_sprc.select_port.assert_called_once_with(217400001, 1, 1)
 
     def test_scan_ports_requires_connection(self, client):
         with pytest.raises(RuntimeError, match="not connected"):
@@ -678,9 +678,9 @@ class TestServerScalarSetterTools:
         ("set_loop_flags", {"flags": 3}, (3,)),
         ("set_iq_gain", {"gain": 150}, (150,)),
         ("set_remux", {"enabled": True}, (True,)),
-        ("set_signal_source", {"source": 0}, (0,)),
+        ("set_signal_source", {"source": 1}, (1,)),
         ("set_use_nit", {"use_nit": True}, (True,)),
-        ("set_sfn_mode", {"sfn_mode": 0}, (0,)),
+        ("set_sfn_mode", {"sfn_mode": 1}, (1,)),
         ("set_sub_loop_pars", {"use_subloop": True, "loop_begin_rel": 0.25, "loop_end_rel": 0.75},
          (True, 0.25, 0.75)),
         ("select_dta_plus", {"use_dta_plus": True, "serial": 217400002}, (True, 217400002)),
@@ -927,10 +927,12 @@ class TestEnhancedParams:
         from streamxpress_mcp.sprc_import import DTAPI
 
         client.connect("http://localhost", 5000)
-        client.set_asi_params(burst_mode=True, polarity=DTAPI.TXPOL_INVERTED)
+        client.set_asi_params(
+            burst_mode=True, polarity=DTAPI.TXPOL_INVERTED, tx_mode=DTAPI.TXMODE_204)
         call_args = mock_sprc.set_asi_pars.call_args[0][0]
         assert call_args.BurstMode is True
         assert call_args.Polarity == DTAPI.TXPOL_INVERTED
+        assert call_args.TxMode == DTAPI.TXMODE_204  # R3: 构造出的结构体上钉住 TxMode
 
     def test_get_status_extra_fields(self, client, mock_sprc):
         from streamxpress_mcp.sprc_import import SpRcPlayoutStatus, SpRcPlayoutInfo
@@ -962,6 +964,15 @@ class TestEnhancedParams:
         with pytest.raises(ValueError, match="invalid protocol"):
             client.set_tsoip_params(dest_ip="239.1.1.1", dest_port=1234, protocol="UPD")
 
+    def test_set_tsoip_params_lowercase_protocol(self, client, mock_sprc):
+        """R5.1: protocol 大小写不敏感（.upper() 归一化）。"""
+        from streamxpress_mcp.sprc_import import DTAPI
+
+        client.connect("http://localhost", 5000)
+        client.set_tsoip_params(dest_ip="239.1.1.1", dest_port=1234, protocol="udp")
+        call_args = mock_sprc.set_tsiop_pars.call_args[0][0]
+        assert call_args.Protocol == DTAPI.PROTO_UDP
+
     def test_set_tsoip_params_fec_and_rtp_and_txmode(self, client, mock_sprc):
         """T2: RTP 分支、FEC 推导、TxMode 传递。"""
         from streamxpress_mcp.sprc_import import DTAPI
@@ -977,6 +988,28 @@ class TestEnhancedParams:
         assert call_args.FecNumCols == 4
         assert call_args.TxMode == DTAPI.TXMODE_204
 
+    def test_set_tsoip_params_partial_fec_disables(self, client, mock_sprc):
+        """R2: rows 或 cols 任一为 0 必须禁用 FEC（守卫是 or 不是 and）。"""
+        from streamxpress_mcp.sprc_import import DTAPI
+
+        client.connect("http://localhost", 5000)
+        for rows, cols in [(4, 0), (0, 4), (0, 0)]:
+            mock_sprc.set_tsiop_pars.reset_mock()
+            client.set_tsoip_params(dest_ip="239.1.1.1", dest_port=1234,
+                                    fec_rows=rows, fec_cols=cols)
+            pars = mock_sprc.set_tsiop_pars.call_args[0][0]
+            assert pars.FecMode == DTAPI.FEC_DISABLE, f"rows={rows} cols={cols}"
+
+    def test_set_tsoip_params_ttl_and_num_tp(self, client, mock_sprc):
+        """R2: ttl / num_tp_per_ip 必须落在正确的结构体字段（防字段互换）。"""
+        client.connect("http://localhost", 5000)
+        # 用非默认值 7/3，避免与默认 64/7 重合成为等价变异体
+        client.set_tsoip_params(dest_ip="239.1.1.1", dest_port=1234,
+                                ttl=7, num_tp_per_ip=3)
+        pars = mock_sprc.set_tsiop_pars.call_args[0][0]
+        assert pars.TimeToLive == 7
+        assert pars.NumTpPerIp == 3
+
     @patch("streamxpress_mcp.server.get_client")
     def test_set_tsoip_params_tool_passes_optional_fields(self, mock_get_client):
         """T3: 工具层不得静默丢弃 protocol/dest_ip2/diff_serv/tx_mode/fec。"""
@@ -984,12 +1017,13 @@ class TestEnhancedParams:
         mock_get_client.return_value = mock_client
         from streamxpress_mcp.server import set_tsoip_params
         set_tsoip_params(
-            dest_ip="239.1.1.1", dest_port=1234, protocol="UDP",
+            dest_ip="239.1.1.1", dest_port=1234, protocol="RTP",
+            num_tp_per_ip=3, ttl=7,
             failover=True, dest_ip2="239.1.1.2", dest_port2=1235, diff_serv=46,
             tx_mode=DTAPI.TXMODE_204, fec_rows=5, fec_cols=4)
         mock_client.set_tsoip_params.assert_called_once_with(
-            dest_ip="239.1.1.1", dest_port=1234, num_tp_per_ip=7, protocol="UDP",
-            ttl=64, fec_rows=5, fec_cols=4, tx_mode=DTAPI.TXMODE_204,
+            dest_ip="239.1.1.1", dest_port=1234, num_tp_per_ip=3, protocol="RTP",
+            ttl=7, fec_rows=5, fec_cols=4, tx_mode=DTAPI.TXMODE_204,
             failover=True, dest_ip2="239.1.1.2", dest_port2=1235, diff_serv=46)
 
     @patch("streamxpress_mcp.server.get_client")
@@ -1038,6 +1072,8 @@ class TestErrorBoundary:
             client.scan_ports()
         # F2: str(e) 为空时兜底 "no detail"，尾部不留空白
         assert str(exc_info.value).endswith("no detail")
+        # R5.2: 错误码数值也被钉住（E_NO_LICK = 0x2000 + 11 = 8203）
+        assert "(8203)" in str(exc_info.value)
 
     def test_long_call_does_not_block_other_calls(self, client, mock_sprc):
         """长阻塞调用不得串行化其他工具调用（锁不能覆盖在途 SOAP 调用）。"""
@@ -1048,7 +1084,7 @@ class TestErrorBoundary:
 
         def slow(cond, timeout):
             started.set()
-            time.sleep(0.6)
+            time.sleep(1.5)  # R5.3: 放宽慢调用时长，避免 CI 负载下 flake
 
         mock_sprc.wait_for_condition.side_effect = slow
         client.connect("http://localhost", 5000)
@@ -1064,6 +1100,28 @@ class TestErrorBoundary:
         # 在慢调用仍在进行时就应完成
         assert done.wait(timeout=0.3), "scan_ports 被 wait_for_condition 阻塞了"
         t.join()
+
+    def test_stale_failure_does_not_kill_new_session(self):
+        """R1: 迟到的传输失败不得把重连后的新会话误标为断开。"""
+        from streamxpress_mcp.client import StreamXpressClient
+
+        old, new = MagicMock(), MagicMock()
+        factory = MagicMock(side_effect=[old, new])
+        client = StreamXpressClient(sprc_factory=factory)
+
+        client.connect("http://localhost", 5000)
+        sprc_old = client._sprc
+        client.disconnect()
+        client.connect("http://localhost", 5000)
+        assert client._sprc is new and client._connected is True
+
+        # 迟到的失败（针对已被替换的 old 会话）不得误杀新会话
+        client._mark_stale(sprc_old)
+        assert client._connected is True, "健康的新会话被迟到的失败误杀了"
+
+        # 对照：当前会话本身失败时仍要标记失效
+        client._mark_stale(new)
+        assert client._connected is False
 
     def test_transport_error_marks_session_stale(self, client, mock_sprc):
         from streamxpress_mcp.sprc_import import SpRcException, SPRC_RESULT

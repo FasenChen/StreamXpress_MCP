@@ -124,9 +124,10 @@ class StreamXpressClient:
           mark the local session stale so the next call reports a clear
           "not connected" instead of a blank SOAP failure.
 
-        The lock is held only while resolving the session reference — never
-        across the SOAP call itself, so a long-running call (e.g. an unbounded
-        wait_for_condition) cannot block every other tool.
+        The lock is held only while resolving the session reference and while
+        updating the stale flag — never across the SOAP call itself, so a
+        long-running call (e.g. an unbounded wait_for_condition) cannot block
+        every other tool.
         """
         with self._lock:
             sprc = self._ensure_connected()
@@ -134,11 +135,24 @@ class StreamXpressClient:
             return fn(sprc)
         except SpRcException as e:
             if e.ErrorCode in _TRANSPORT_ERROR_CODES:
-                self._connected = False
+                self._mark_stale(sprc)
             _raise_sprc_error(e)
         except OSError as e:
-            self._connected = False
+            self._mark_stale(sprc)
             raise RuntimeError(f"StreamXpress communication error: {e}") from e
+
+    def _mark_stale(self, sprc) -> None:
+        """Mark the session stale, but only if it is still the current session.
+
+        An in-flight call may fail late: meanwhile the user may have done a
+        disconnect+connect, establishing a fresh healthy session. Without an
+        identity check, that late failure would falsely mark the new session as
+        disconnected, leaving every subsequent call with "not connected" until
+        a manual reconnect.
+        """
+        with self._lock:
+            if self._sprc is sprc:
+                self._connected = False
 
     # ── Port discovery ──
 
