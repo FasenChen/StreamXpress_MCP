@@ -201,7 +201,7 @@ def save_settings(filepath: str) -> dict:
 
 @mcp.tool()
 def normalise() -> dict:
-    """Normalise the output level to the modulation standard's reference level."""
+    """Normalise multi-path channel modelling (accumulated path gain to 0 dB)."""
     client = get_client()
     client.normalise()
     return {"status": "ok"}
@@ -227,7 +227,11 @@ def stop() -> dict:
 
 @mcp.tool()
 def get_status() -> dict:
-    """Get current playout status including position, wraps, filename, and bitrate."""
+    """Get current playout status including position, wraps, filename, and bitrate.
+
+    Note: total_mem_load's unit is ambiguous between sources — SpRcApi.h says
+    "#words", the spec says "#bytes". It is passed through as-is.
+    """
     client = get_client()
     return client.get_status()
 
@@ -290,7 +294,7 @@ def get_signal_source() -> int:
 
 @mcp.tool()
 def get_use_nit() -> bool:
-    """Get whether the NIT table is being generated/used."""
+    """Get whether the NIT is being used to derive modulation parameters."""
     return get_client().get_use_nit()
 
 
@@ -462,7 +466,10 @@ def set_iq_gain(gain: int) -> dict:
 
 @mcp.tool()
 def set_remux(enabled: bool) -> dict:
-    """Enable/disable real-time remultiplexing (add null packets to match output rate)."""
+    """Enable/disable real-time remultiplexing on modulator ports only.
+
+    Note: SetRemux applies to modulator ports; ASI/SPI ports return an error.
+    """
     client = get_client()
     client.set_remux(enabled)
     return {"status": "ok", "enabled": enabled}
@@ -478,7 +485,7 @@ def set_signal_source(source: int) -> dict:
 
 @mcp.tool()
 def set_use_nit(use_nit: bool) -> dict:
-    """Enable/disable NIT table generation."""
+    """Enable/disable using the NIT to derive modulation parameters."""
     client = get_client()
     client.set_use_nit(use_nit)
     return {"status": "ok", "use_nit": use_nit}
@@ -548,7 +555,9 @@ def set_spi_pars(spi_pars: dict) -> dict:
     """Set DVB-SPI transmission parameters.
 
     Args:
-        spi_pars: dict with keys Remux (bool), PlayoutRate (int), optional TxMode (default DTAPI.TXMODE_188), Power (default False).
+        spi_pars: dict with keys Remux (bool), PlayoutRate (int), optional TxMode
+                  (DTAPI.TXMODE_188/192/204/ADD16/MIN16/RAW — 192 is DTA-102 only),
+                  Power (default False).
     """
     client = get_client()
     client.set_spi_pars(spi_pars)
@@ -613,9 +622,10 @@ def set_channel_modelling_pars(cm_pars: dict) -> dict:
 def set_dvb_t2_pars(dvb_t2_pars: dict) -> dict:
     """Set DVB-T2 modulation parameters (follows SpRcDvbT2Pars field names).
 
-    Args:
-        dvb_t2_pars: dict of SpRcDvbT2Pars fields, e.g. Bandwidth=DTAPI.DVBT2_8MHZ,
-                     FftMode=DTAPI.DVBT2_FFT_8K, GuardInterval=..., optional FollowMode (default SPRC.T2_FOLLOW_OFF).
+    All 36 fields are required. Easiest path: call get_dvb_t2_pars() first and
+    edit the returned dict, keeping the exact SpRcDvbT2Pars field names
+    (Bandwidth=DTAPI.DVBT2_8MHZ, FftMode=DTAPI.DVBT2_FFT_8K, ...). Optional
+    FollowMode defaults to SPRC.T2_FOLLOW_OFF.
     """
     client = get_client()
     client.set_dvb_t2_pars(dvb_t2_pars)

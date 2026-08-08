@@ -83,6 +83,8 @@ python -m streamxpress_mcp
 > 这是破坏性变更：工具名已从 `streamxpress_connect` 等改为无前缀的 `connect` 等。升级后请在各 MCP 客户端（WorkBuddy、Claude Desktop 等）重新连接/重启会话以刷新工具列表，旧名不再注册。
 >
 > 新增的 `launch` 工具同样无前缀，客户端中显示为 `streamxpress_launch`。
+>
+> 当前共注册 **59** 个工具（13 个基础 + 46 个 SpRcApi 接口透传）。
 
 | 工具 | 说明 |
 |---|---|
@@ -113,7 +115,7 @@ python -m streamxpress_mcp
 | `get_hw_noise_pars` | 读取硬件噪声参数（DTA-107/DTA-2107） |
 | `get_iq_gain` | 读取 IQ 增益（0.1 dB） |
 | `get_signal_source` | 读取信号源（文件/测试信号发生器） |
-| `get_use_nit` | 读取 NIT 表生成开关 |
+| `get_use_nit` | 读取是否使用 NIT 推导调制参数 |
 | `get_channel_modelling_pars` | 读取信道建模参数（噪声+多径） |
 | `get_dvb_t2_group` | 读取 DVB-T2 参数组选择 |
 | `get_dvb_t2_pars` | 读取 DVB-T2 调制参数 |
@@ -124,12 +126,12 @@ python -m streamxpress_mcp
 | `open_channel_modelling_file` | 打开信道建模文件（.chmx） |
 | `save_channel_modelling_settings` | 保存信道建模设置（.chmx） |
 | `save_settings` | 保存全部设置（.xml） |
-| `normalise` | 归一化输出电平 |
+| `normalise` | 归一化多径信道建模增益 |
 | `set_loop_flags` | 设置循环适配标志（CC/PCR/TDT/Wrap） |
 | `set_iq_gain` | 设置 IQ 增益（0.1 dB） |
 | `set_remux` | 开关实时重复用 |
 | `set_signal_source` | 设置信号源（文件/测试信号发生器） |
-| `set_use_nit` | 开关 NIT 表生成 |
+| `set_use_nit` | 设置是否使用 NIT 推导调制参数 |
 | `set_sfn_mode` | 设置 SFN 模式（禁用/1PPS） |
 | `set_sub_loop_pars` | 设置文件子循环位置 |
 | `select_dta_plus` | 选择 DtaPlus 衰减器设备 |

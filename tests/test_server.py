@@ -942,6 +942,32 @@ class TestEnhancedParams:
         assert status["file_size"] == 1024
         assert status["tp_size"] == 188
 
+    def test_set_tsoip_params_rejects_invalid_protocol(self, client, mock_sprc):
+        client.connect("http://localhost", 5000)
+        with pytest.raises(ValueError, match="invalid protocol"):
+            client.set_tsoip_params(dest_ip="239.1.1.1", dest_port=1234, protocol="UPD")
+
+    def test_set_channel_modelling_pars_paths_none(self, client, mock_sprc):
+        """JSON null 表达"无路径"时应回退为空列表而非崩溃。"""
+        client.connect("http://localhost", 5000)
+        client.set_channel_modelling_pars({
+            "CmEnable": True, "AwgnEnable": True, "Snr": 20.0, "PathsEnable": False,
+            "Paths": None,
+        })
+        call_args = mock_sprc.set_channel_modelling_pars.call_args[0][0]
+        assert call_args.Paths == []
+
+    def test_set_isdb_t_pars_duplicate_pid_keys(self, client, mock_sprc):
+        """Pid2Layer 中同一 PID 重复出现应报错而非静默覆盖。"""
+        client.connect("http://localhost", 5000)
+        with pytest.raises(ValueError, match="duplicate PID"):
+            client.set_isdb_t_pars({
+                "DoMux": True, "BType": 0, "Mode": 3, "Guard": 2, "PartialRx": 0,
+                "Emergency": 0, "IipPid": 0,
+                "LayerPars": [], "Pid2Layer": {"100": 1, 100: 2},
+                "LayerOther": 0, "ParXtra0": 0,
+            })
+
 
 class TestErrorBoundary:
     """Wrapper 错误转换边界：SpRcException 可诊断化、传输故障断连、disconnect 暴露失败。"""
