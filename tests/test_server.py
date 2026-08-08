@@ -851,3 +851,50 @@ class TestWaitForCondition:
         result = wait_for_condition(condition=1, timeout_ms=-1)
         assert result == {"status": "ok", "condition": 1}
         mock_client.wait_for_condition.assert_called_once_with(1, -1)
+
+
+class TestEnhancedParams:
+    def test_set_tsoip_params_failover(self, client, mock_sprc):
+        client.connect("http://localhost", 5000)
+        client.set_tsoip_params(
+            dest_ip="239.1.1.1", dest_port=1234, failover=True,
+            dest_ip2="239.1.1.2", dest_port2=1235, diff_serv=46)
+        call_args = mock_sprc.set_tsiop_pars.call_args[0][0]
+        assert call_args.EnaFailover is True
+        assert call_args.Ip2 == bytes([239, 1, 1, 2])
+        assert call_args.Port2 == 1235
+        assert call_args.DiffServ == 46
+
+    def test_set_asi_params_burst_polarity(self, client, mock_sprc):
+        from streamxpress_mcp.sprc_import import DTAPI
+
+        client.connect("http://localhost", 5000)
+        client.set_asi_params(burst_mode=True, polarity=DTAPI.TXPOL_INVERTED)
+        call_args = mock_sprc.set_asi_pars.call_args[0][0]
+        assert call_args.BurstMode is True
+        assert call_args.Polarity == DTAPI.TXPOL_INVERTED
+
+    def test_get_status_extra_fields(self, client, mock_sprc):
+        from streamxpress_mcp.sprc_import import SpRcPlayoutStatus, SpRcPlayoutInfo
+
+        mock_sprc.get_playout_status.return_value = SpRcPlayoutStatus(
+            PosRel=0.5, NumWraps=0, FifoLoad=42, NumErrors=1, TotalMemLoad=1024)
+        mock_sprc.get_playout_info.return_value = SpRcPlayoutInfo(
+            PlayoutState=1, Filename="test.ts", TsRate=25_000_000, PlayoutRate=25_000_000,
+            BurstMode=False, ExtClock=False, FileCanBeRead=True,
+            FileOffsetEnd=0, FileOffsetStart=0, FilePlayedBytes=0,
+            FileRateEst=0, FileSize=1024, FileType=0,
+            LoopBeginRel=0.0, LoopEndRel=0.0, LoopFlags=3,
+            Remux=False, SymRate=27_500_000,
+            TimeLoopBegin=0, TimeLoopEnd=0, TimeOffset=0,
+            TpSize=188, TxPolarity=0)
+
+        client.connect("http://localhost", 5000)
+        status = client.get_status()
+        assert status["fifo_load"] == 42
+        assert status["num_errors"] == 1
+        assert status["playout_rate"] == 25_000_000
+        assert status["sym_rate"] == 27_500_000
+        assert status["loop_flags"] == 3
+        assert status["file_size"] == 1024
+        assert status["tp_size"] == 188

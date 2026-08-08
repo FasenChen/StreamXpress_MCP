@@ -141,9 +141,19 @@ class StreamXpressClient:
         return {
             "position_percent": round(status.PosRel * 100, 1),
             "num_wraps": status.NumWraps,
+            "num_errors": status.NumErrors,
+            "fifo_load": status.FifoLoad,
+            "total_mem_load": status.TotalMemLoad,
             "playout_state": info.PlayoutState,
             "file_name": info.Filename,
+            "file_size": info.FileSize,
             "ts_rate_bps": info.TsRate,
+            "playout_rate": info.PlayoutRate,
+            "sym_rate": info.SymRate,
+            "time_offset": info.TimeOffset,
+            "loop_flags": info.LoopFlags,
+            "remux": info.Remux,
+            "tp_size": info.TpSize,
         }
 
     # ── Parameter getters ──
@@ -231,23 +241,29 @@ class StreamXpressClient:
         ttl: int = 64,
         fec_rows: int = 0,
         fec_cols: int = 0,
+        tx_mode: int = DTAPI.TXMODE_188,
+        failover: bool = False,
+        dest_ip2: str | None = None,
+        dest_port2: int = 0,
+        diff_serv: int = 0,
     ) -> None:
         sprc = self._ensure_connected()
         ip_bytes = bytes(int(octet) for octet in dest_ip.split("."))
+        ip2_bytes = bytes(int(o) for o in dest_ip2.split(".")) if dest_ip2 else bytes([0, 0, 0, 0])
         proto_const = DTAPI.PROTO_UDP if protocol.upper() == "UDP" else DTAPI.PROTO_RTP
         fec_mode = DTAPI.FEC_DISABLE if (fec_rows == 0 or fec_cols == 0) else DTAPI.FEC_2D
 
         pars = SpRcTsoipPars(
-            TxMode=DTAPI.TXMODE_188,
+            TxMode=tx_mode,
             Ip=ip_bytes,
             Port=dest_port,
-            EnaFailover=False,
-            Ip2=bytes([0, 0, 0, 0]),
-            Port2=0,
+            EnaFailover=failover,
+            Ip2=ip2_bytes,
+            Port2=dest_port2,
             TimeToLive=ttl,
             NumTpPerIp=num_tp_per_ip,
             Protocol=proto_const,
-            DiffServ=0,
+            DiffServ=diff_serv,
             FecMode=fec_mode,
             FecNumRows=fec_rows,
             FecNumCols=fec_cols,
@@ -260,15 +276,20 @@ class StreamXpressClient:
         sprc.set_rf_pars(pars)
 
     def set_asi_params(
-        self, remux: bool = True, playout_rate: int = 0, tx_mode: int = DTAPI.TXMODE_188
+        self,
+        remux: bool = True,
+        playout_rate: int = 0,
+        tx_mode: int = DTAPI.TXMODE_188,
+        burst_mode: bool = False,
+        polarity: int = DTAPI.TXPOL_NORMAL,
     ) -> None:
         sprc = self._ensure_connected()
         pars = SpRcAsiPars(
             Remux=remux,
             PlayoutRate=playout_rate,
-            BurstMode=False,
+            BurstMode=burst_mode,
             TxMode=tx_mode,
-            Polarity=DTAPI.TXPOL_NORMAL,
+            Polarity=polarity,
         )
         sprc.set_asi_pars(pars)
 

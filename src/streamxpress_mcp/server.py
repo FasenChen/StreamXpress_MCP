@@ -5,7 +5,7 @@ from fastmcp import FastMCP
 from .client import StreamXpressClient
 from .config import load_config, resolve_wsdl_path
 from .launcher import launch_streamxpress
-from .sprc_import import SPRC_client
+from .sprc_import import SPRC_client, DTAPI
 
 # ── FastMCP application ──
 
@@ -352,6 +352,11 @@ def set_tsoip_params(
     ttl: int = 64,
     fec_rows: int = 0,
     fec_cols: int = 0,
+    tx_mode: int = DTAPI.TXMODE_188,
+    failover: bool = False,
+    dest_ip2: str | None = None,
+    dest_port2: int = 0,
+    diff_serv: int = 0,
 ) -> dict:
     """Configure TS-over-IP output parameters (UDP/RTP).
 
@@ -363,6 +368,11 @@ def set_tsoip_params(
         ttl: Time-To-Live for multicast
         fec_rows: FEC matrix rows (D), 0 disables FEC
         fec_cols: FEC matrix columns (L), 0 disables FEC
+        tx_mode: DTAPI.TXMODE_188/204/ADD16/MIN16
+        failover: Enable redundant second IP port (DTA-2162)
+        dest_ip2: Second destination IP for failover
+        dest_port2: Second destination port for failover
+        diff_serv: Differentiated-services (ToS) value in IP header
     """
     client = get_client()
     client.set_tsoip_params(
@@ -373,6 +383,11 @@ def set_tsoip_params(
         ttl=ttl,
         fec_rows=fec_rows,
         fec_cols=fec_cols,
+        tx_mode=tx_mode,
+        failover=failover,
+        dest_ip2=dest_ip2,
+        dest_port2=dest_port2,
+        diff_serv=diff_serv,
     )
     return {
         "status": "ok",
@@ -399,17 +414,24 @@ def set_rf_params(frequency_hz: int, level_dbm: float) -> dict:
 def set_asi_params(
     remux: bool = True,
     playout_rate: int = 0,
-    tx_mode: int = 0,
+    tx_mode: int = DTAPI.TXMODE_188,
+    burst_mode: bool = False,
+    polarity: int = DTAPI.TXPOL_NORMAL,
 ) -> dict:
     """Set ASI output parameters.
 
     Args:
         remux: Enable real-time remultiplexing (add null packets to match output rate)
         playout_rate: Output rate in bps (0 = use file native rate)
-        tx_mode: 0=188-byte packets, 2=204-byte (Add16), 3=188-from-204 (Min16)
+        tx_mode: DTAPI.TXMODE_188 (default), 204, ADD16, MIN16
+        burst_mode: Enable DVB-ASI burst mode
+        polarity: DTAPI.TXPOL_NORMAL=0 or DTAPI.TXPOL_INVERTED=1
     """
     client = get_client()
-    client.set_asi_params(remux=remux, playout_rate=playout_rate, tx_mode=tx_mode)
+    client.set_asi_params(
+        remux=remux, playout_rate=playout_rate, tx_mode=tx_mode,
+        burst_mode=burst_mode, polarity=polarity,
+    )
     return {"status": "ok"}
 
 
