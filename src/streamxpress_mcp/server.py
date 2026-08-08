@@ -194,6 +194,66 @@ def get_status() -> dict:
 # ── Parameter tools ──
 
 @mcp.tool()
+def get_asi_pars() -> dict:
+    """Get current DVB-ASI transmission parameters."""
+    return get_client().get_asi_pars()
+
+
+@mcp.tool()
+def get_cmmb_pars() -> dict:
+    """Get current CMMB modulation parameters."""
+    return get_client().get_cmmb_pars()
+
+
+@mcp.tool()
+def get_mod_pars() -> dict:
+    """Get current modulation parameters (ModType/ParXtra0-2/SymRate)."""
+    return get_client().get_mod_pars()
+
+
+@mcp.tool()
+def get_rf_pars() -> dict:
+    """Get current RF parameters (frequency Hz, level dBm, SpecInv, CW, RfEnabledOnStop)."""
+    return get_client().get_rf_pars()
+
+
+@mcp.tool()
+def get_tsoip_pars() -> dict:
+    """Get current TS-over-IP transmission parameters (Ip is a list of 4 ints)."""
+    return get_client().get_tsoip_pars()
+
+
+@mcp.tool()
+def get_spi_pars() -> dict:
+    """Get current DVB-SPI transmission parameters."""
+    return get_client().get_spi_pars()
+
+
+@mcp.tool()
+def get_hw_noise_pars() -> dict:
+    """Get hardware noise generator parameters (DTA-107/DTA-2107)."""
+    return get_client().get_hw_noise_pars()
+
+
+@mcp.tool()
+def get_iq_gain() -> int:
+    """Get the IQ gain in units of 0.1 dB."""
+    return get_client().get_iq_gain()
+
+
+@mcp.tool()
+def get_signal_source() -> int:
+    """Get the current signal source: 0=file, 1=test signal generator (SPRC.FROM_FILE / SPRC.TEST_GENERATOR)."""
+    return get_client().get_signal_source()
+
+
+@mcp.tool()
+def get_use_nit() -> bool:
+    """Get whether the NIT table is being generated/used."""
+    return get_client().get_use_nit()
+
+
+@mcp.tool()
 def set_rate(rate_bps: int) -> dict:
     """Set the TS playout bitrate in bits per second (188-byte packets).
 

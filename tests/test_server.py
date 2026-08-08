@@ -260,6 +260,9 @@ EXPECTED_TOOL_NAMES = {
     "set_rf_params", "set_asi_params", "launch",
     "get_remote_version", "get_remote_dtapi_version", "get_app_info",
     "show_window", "clear_errors",
+    "get_asi_pars", "get_cmmb_pars", "get_mod_pars", "get_rf_pars",
+    "get_tsoip_pars", "get_spi_pars", "get_hw_noise_pars", "get_iq_gain",
+    "get_signal_source", "get_use_nit",
 }
 
 
@@ -422,3 +425,63 @@ class TestServerSessionVersionTools:
         from streamxpress_mcp.server import show_window
         assert show_window(False) == {"status": "ok", "show": False}
         mock_client.show_window.assert_called_once_with(False)
+
+
+class TestClientParameterGetters:
+    def _connect(self, client):
+        client.connect("http://localhost", 5000)
+
+    def test_get_asi_pars(self, client, mock_sprc):
+        from streamxpress_mcp.sprc_import import SpRcAsiPars, DTAPI
+
+        mock_sprc.get_asi_pars.return_value = SpRcAsiPars(
+            Remux=True, PlayoutRate=20_000_000, BurstMode=False,
+            TxMode=DTAPI.TXMODE_188, Polarity=DTAPI.TXPOL_NORMAL)
+        self._connect(client)
+        result = client.get_asi_pars()
+        assert result["Remux"] is True
+        assert result["PlayoutRate"] == 20_000_000
+
+    def test_get_tsoip_pars_converts_bytes(self, client, mock_sprc):
+        from streamxpress_mcp.sprc_import import SpRcTsoipPars, DTAPI
+
+        mock_sprc.get_tsoip_pars.return_value = SpRcTsoipPars(
+            TxMode=DTAPI.TXMODE_188, Ip=b"\xef\x01\x02\x03", Port=1234,
+            EnaFailover=False, Ip2=bytes(4), Port2=0, TimeToLive=64,
+            NumTpPerIp=7, Protocol=DTAPI.PROTO_UDP, DiffServ=0,
+            FecMode=DTAPI.FEC_DISABLE, FecNumRows=0, FecNumCols=0)
+        self._connect(client)
+        assert client.get_tsoip_pars()["Ip"] == [239, 1, 2, 3]
+
+    def test_get_iq_gain_returns_int(self, client, mock_sprc):
+        mock_sprc.get_iq_gain.return_value = 150
+        self._connect(client)
+        assert client.get_iq_gain() == 150
+
+    def test_get_use_nit_returns_bool(self, client, mock_sprc):
+        mock_sprc.get_use_nit.return_value = True
+        self._connect(client)
+        assert client.get_use_nit() is True
+
+
+class TestServerParameterGetterTools:
+    @pytest.mark.parametrize("tool_name,method", [
+        ("get_asi_pars", "get_asi_pars"),
+        ("get_cmmb_pars", "get_cmmb_pars"),
+        ("get_mod_pars", "get_mod_pars"),
+        ("get_rf_pars", "get_rf_pars"),
+        ("get_tsoip_pars", "get_tsoip_pars"),
+        ("get_spi_pars", "get_spi_pars"),
+        ("get_hw_noise_pars", "get_hw_noise_pars"),
+        ("get_iq_gain", "get_iq_gain"),
+        ("get_signal_source", "get_signal_source"),
+        ("get_use_nit", "get_use_nit"),
+    ])
+    @patch("streamxpress_mcp.server.get_client")
+    def test_getter_tool_returns_client_result(self, mock_get_client, tool_name, method):
+        mock_client = MagicMock()
+        mock_client.get_use_nit.return_value = True
+        mock_get_client.return_value = mock_client
+        from streamxpress_mcp import server as server_mod
+        tool = getattr(server_mod, tool_name)
+        assert tool() == getattr(mock_client, method).return_value

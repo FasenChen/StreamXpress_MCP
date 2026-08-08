@@ -125,6 +125,48 @@ class StreamXpressClient:
             "ts_rate_bps": info.TsRate,
         }
 
+    # ── Parameter getters ──
+
+    def get_asi_pars(self) -> dict:
+        sprc = self._ensure_connected()
+        return _to_dict(sprc.get_asi_pars())
+
+    def get_cmmb_pars(self) -> dict:
+        sprc = self._ensure_connected()
+        return _to_dict(sprc.get_cmmb_pars())
+
+    def get_mod_pars(self) -> dict:
+        sprc = self._ensure_connected()
+        return _to_dict(sprc.get_mod_pars())
+
+    def get_rf_pars(self) -> dict:
+        sprc = self._ensure_connected()
+        return _to_dict(sprc.get_rf_pars())
+
+    def get_tsoip_pars(self) -> dict:
+        sprc = self._ensure_connected()
+        return _to_dict(sprc.get_tsoip_pars())
+
+    def get_spi_pars(self) -> dict:
+        sprc = self._ensure_connected()
+        return _to_dict(sprc.get_spi_pars())
+
+    def get_hw_noise_pars(self) -> dict:
+        sprc = self._ensure_connected()
+        return _to_dict(sprc.get_hw_noise_pars())
+
+    def get_iq_gain(self) -> int:
+        sprc = self._ensure_connected()
+        return sprc.get_iq_gain()
+
+    def get_signal_source(self) -> int:
+        sprc = self._ensure_connected()
+        return sprc.get_signal_source()
+
+    def get_use_nit(self) -> bool:
+        sprc = self._ensure_connected()
+        return sprc.get_use_nit()
+
     # ── Parameters ──
 
     def set_rate(self, bps: int) -> None:
