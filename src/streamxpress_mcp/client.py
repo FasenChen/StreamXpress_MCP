@@ -1,8 +1,26 @@
 """StreamXpressClient: singleton wrapper around SPRC_client for MCP server use."""
 
+from dataclasses import asdict
+
 from .sprc_import import SPRC_client, SpRcPortDesc, SpRcException, SPRC_RESULT
 from .sprc_import import SpRcAsiPars, SpRcTsoipPars, SpRcRfPars, SpRcModPars
 from .sprc_import import SPRC, DTAPI
+
+
+def _jsonable(value):
+    """Recursively convert asdict() output to JSON-safe types (bytes → list[int])."""
+    if isinstance(value, bytes):
+        return list(value)
+    if isinstance(value, list):
+        return [_jsonable(v) for v in value]
+    if isinstance(value, dict):
+        return {k: _jsonable(v) for k, v in value.items()}
+    return value
+
+
+def _to_dict(obj) -> dict:
+    """Convert a dataclass instance (possibly nested) to a JSON-safe dict."""
+    return _jsonable(asdict(obj))
 
 
 class StreamXpressClient:

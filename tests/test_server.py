@@ -325,3 +325,38 @@ class TestGetClientWsdl:
         client = get_client()
         sprc = client._sprc_factory()
         assert sprc._wsdl_template is None
+
+
+class TestSerializationHelpers:
+    def test_jsonable_converts_bytes_to_list(self):
+        from streamxpress_mcp.client import _jsonable
+
+        assert _jsonable(b"\x01\x02") == [1, 2]
+
+    def test_jsonable_recurses_into_lists_and_dicts(self):
+        from streamxpress_mcp.client import _jsonable
+
+        assert _jsonable({"a": [b"\x00", {"b": b"\xff"}]}) == {"a": [[0], {"b": [255]}]}
+
+    def test_to_dict_flattens_nested_dataclass(self):
+        from streamxpress_mcp.client import _to_dict
+        from streamxpress_mcp.sprc_import import SpRcTsoipPars, DTAPI
+
+        pars = SpRcTsoipPars(
+            TxMode=DTAPI.TXMODE_188, Ip=b"\xef\x01\x02\x03", Port=1234,
+            EnaFailover=False, Ip2=bytes(4), Port2=0, TimeToLive=64,
+            NumTpPerIp=7, Protocol=DTAPI.PROTO_UDP, DiffServ=0,
+            FecMode=DTAPI.FEC_DISABLE, FecNumRows=0, FecNumCols=0,
+        )
+        assert _to_dict(pars)["Ip"] == [239, 1, 2, 3]
+
+    def test_sprc_import_exports_new_types(self):
+        from streamxpress_mcp.sprc_import import (
+            SpRcVersion, SpRcCmmbPars, SpRcCmPars, SpRcCmPath, SpRcDvbT2Group,
+            SpRcDvbT2Pars, SpRcHwNoisePars, SpRcIsdbtPars, SpRcIsdbtLayerPars,
+            SpRcPlayoutSfnPars, SpRcSpiPars, SpRcSubLoopPars, SpRcDateTime,
+            SpRcTdtAdaptPars, SpRcTsgPars, SpRcSfnStatus,
+        )
+
+        assert SpRcVersion(MajorVersion=1, MinorVersion=2, BugFixVersion=3, BuildNumber=4).MajorVersion == 1
+        assert SpRcCmmbPars(Bandwidth=0, AreaId=1, TxId=2).AreaId == 1
