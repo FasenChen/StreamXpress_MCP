@@ -269,6 +269,8 @@ EXPECTED_TOOL_NAMES = {
     "save_settings", "normalise",
     "set_loop_flags", "set_iq_gain", "set_remux", "set_signal_source",
     "set_use_nit", "set_sfn_mode", "set_sub_loop_pars", "select_dta_plus",
+    "set_cmmb_pars", "set_hw_noise_pars", "set_spi_pars", "set_tsg_pars",
+    "set_dvb_t2_group",
 }
 
 
@@ -664,3 +666,56 @@ class TestServerScalarSetterTools:
         tool = getattr(server_mod, tool_name)
         result = tool(**kwargs)
         assert result["status"] == "ok"
+
+
+class TestClientStructSetters:
+    def _connect(self, client):
+        client.connect("http://localhost", 5000)
+
+    def test_set_cmmb_pars(self, client, mock_sprc):
+        self._connect(client)
+        client.set_cmmb_pars({"Bandwidth": 0, "AreaId": 3, "TxId": 200})
+        call_args = mock_sprc.set_cmmb_pars.call_args[0][0]
+        assert call_args.Bandwidth == 0
+        assert call_args.AreaId == 3
+        assert call_args.TxId == 200
+
+    def test_set_hw_noise_pars(self, client, mock_sprc):
+        self._connect(client)
+        client.set_hw_noise_pars({"SnrOn": True, "Snr": 25.0})
+        call_args = mock_sprc.set_hw_noise_pars.call_args[0][0]
+        assert call_args.SnrOn is True
+        assert call_args.Snr == 25.0
+
+    def test_set_tsg_pars(self, client, mock_sprc):
+        from streamxpress_mcp.sprc_import import SPRC
+
+        self._connect(client)
+        client.set_tsg_pars({"Type": SPRC.TSG_TYPE_PRBS15, "Pid": 100, "VidStd": 0})
+        call_args = mock_sprc.set_tsg_pars.call_args[0][0]
+        assert call_args.Type == SPRC.TSG_TYPE_PRBS15
+        assert call_args.Pid == 100
+
+    def test_set_dvb_t2_group(self, client, mock_sprc):
+        self._connect(client)
+        client.set_dvb_t2_group({"GroupName": "VV1xx", "GroupRefName": "VV100"})
+        call_args = mock_sprc.set_dvb_t2_group.call_args[0][0]
+        assert call_args.GroupName == "VV1xx"
+        assert call_args.GroupRefName == "VV100"
+
+
+class TestServerStructSetterTools:
+    @pytest.mark.parametrize("tool_name,arg_name,arg_value", [
+        ("set_cmmb_pars", "cmmb_pars", {"Bandwidth": 0, "AreaId": 3, "TxId": 200}),
+        ("set_hw_noise_pars", "hw_noise_pars", {"SnrOn": True, "Snr": 25.0}),
+        ("set_spi_pars", "spi_pars", {"Remux": False, "PlayoutRate": 0}),
+        ("set_tsg_pars", "tsg_pars", {"Type": 1, "Pid": 100, "VidStd": 0}),
+        ("set_dvb_t2_group", "dvb_t2_group", {"GroupName": "VV1xx", "GroupRefName": "VV100"}),
+    ])
+    @patch("streamxpress_mcp.server.get_client")
+    def test_struct_setter_tool_returns_ok(self, mock_get_client, tool_name, arg_name, arg_value):
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
+        from streamxpress_mcp import server as server_mod
+        tool = getattr(server_mod, tool_name)
+        assert tool(**{arg_name: arg_value}) == {"status": "ok"}

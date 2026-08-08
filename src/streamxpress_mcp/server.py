@@ -492,6 +492,66 @@ def select_dta_plus(use_dta_plus: bool, serial: int) -> dict:
     return {"status": "ok", "serial": serial}
 
 
+@mcp.tool()
+def set_cmmb_pars(cmmb_pars: dict) -> dict:
+    """Set CMMB modulation parameters.
+
+    Args:
+        cmmb_pars: dict with keys Bandwidth (DTAPI.CMMB_BW_2MHZ=0/8MHZ=1), AreaId (0..127), TxId (128..255).
+    """
+    client = get_client()
+    client.set_cmmb_pars(cmmb_pars)
+    return {"status": "ok"}
+
+
+@mcp.tool()
+def set_hw_noise_pars(hw_noise_pars: dict) -> dict:
+    """Set hardware noise generator parameters (DTA-107/DTA-2107).
+
+    Args:
+        hw_noise_pars: dict with keys SnrOn (bool), Snr (float dB).
+    """
+    client = get_client()
+    client.set_hw_noise_pars(hw_noise_pars)
+    return {"status": "ok"}
+
+
+@mcp.tool()
+def set_spi_pars(spi_pars: dict) -> dict:
+    """Set DVB-SPI transmission parameters.
+
+    Args:
+        spi_pars: dict with keys Remux (bool), PlayoutRate (int), optional TxMode (default DTAPI.TXMODE_188), Power (default False).
+    """
+    client = get_client()
+    client.set_spi_pars(spi_pars)
+    return {"status": "ok"}
+
+
+@mcp.tool()
+def set_tsg_pars(tsg_pars: dict) -> dict:
+    """Set test signal generator parameters.
+
+    Args:
+        tsg_pars: dict with keys Type (SPRC.TSG_TYPE_*), Pid (int), VidStd (SPRC.VIDSTD_*, only for SDI generators), optional Flags (default 0).
+    """
+    client = get_client()
+    client.set_tsg_pars(tsg_pars)
+    return {"status": "ok"}
+
+
+@mcp.tool()
+def set_dvb_t2_group(dvb_t2_group: dict) -> dict:
+    """Select a DVB-T2 parameter group.
+
+    Args:
+        dvb_t2_group: dict with keys GroupName (e.g. "VV1xx"), GroupRefName (e.g. "VV100").
+    """
+    client = get_client()
+    client.set_dvb_t2_group(dvb_t2_group)
+    return {"status": "ok"}
+
+
 # ── Launch tool ──
 
 @mcp.tool()

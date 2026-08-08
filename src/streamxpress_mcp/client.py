@@ -3,7 +3,10 @@
 from dataclasses import asdict
 
 from .sprc_import import SPRC_client, SpRcPortDesc, SpRcException, SPRC_RESULT
-from .sprc_import import SpRcAsiPars, SpRcTsoipPars, SpRcRfPars, SpRcModPars, SpRcSubLoopPars
+from .sprc_import import (
+    SpRcAsiPars, SpRcTsoipPars, SpRcRfPars, SpRcModPars, SpRcSubLoopPars,
+    SpRcCmmbPars, SpRcHwNoisePars, SpRcSpiPars, SpRcTsgPars, SpRcDvbT2Group,
+)
 from .sprc_import import SPRC, DTAPI
 
 
@@ -306,3 +309,23 @@ class StreamXpressClient:
     def select_dta_plus(self, use_dta_plus: bool, serial: int) -> None:
         sprc = self._ensure_connected()
         sprc.select_dta_plus(use_dta_plus, serial)
+
+    def set_cmmb_pars(self, pars: dict) -> None:
+        sprc = self._ensure_connected()
+        sprc.set_cmmb_pars(SpRcCmmbPars(**pars))
+
+    def set_hw_noise_pars(self, pars: dict) -> None:
+        sprc = self._ensure_connected()
+        sprc.set_hw_noise_pars(SpRcHwNoisePars(**pars))
+
+    def set_spi_pars(self, pars: dict) -> None:
+        sprc = self._ensure_connected()
+        sprc.set_spi_pars(SpRcSpiPars(**pars))
+
+    def set_tsg_pars(self, pars: dict) -> None:
+        sprc = self._ensure_connected()
+        sprc.set_tsg_pars(SpRcTsgPars(**pars))
+
+    def set_dvb_t2_group(self, pars: dict) -> None:
+        sprc = self._ensure_connected()
+        sprc.set_dvb_t2_group(SpRcDvbT2Group(**pars))
