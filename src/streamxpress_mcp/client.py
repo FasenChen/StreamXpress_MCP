@@ -1,6 +1,7 @@
 """StreamXpressClient: singleton wrapper around SPRC_client for MCP server use."""
 
 import math
+import threading
 from dataclasses import asdict
 
 from .sprc_import import SPRC_client, SpRcPortDesc, SpRcException, SPRC_RESULT
@@ -69,6 +70,9 @@ class StreamXpressClient:
         self._sprc_factory = sprc_factory or SPRC_client
         self._sprc: SPRC_client | None = None
         self._connected = False
+        # FastMCP runs sync tools on worker threads, so two tool calls can
+        # genuinely overlap; the RLock serializes session mutations.
+        self._lock = threading.RLock()
 
     def connect(self, host: str, port: int) -> None:
         """Open a remote-control session to StreamXpress.
@@ -84,8 +88,9 @@ class StreamXpressClient:
             sprc.open_session(ip_host=host, ip_port=port)
         except SpRcException as e:
             _raise_sprc_error(e)
-        self._sprc = sprc
-        self._connected = True
+        with self._lock:
+            self._sprc = sprc
+            self._connected = True
 
     def disconnect(self) -> None:
         """Close the session and clean up.
@@ -94,16 +99,17 @@ class StreamXpressClient:
         closing) is reported as a RuntimeError instead of being swallowed, so
         the caller can surface it while still being able to reconnect.
         """
-        error = None
-        if self._sprc is not None:
-            try:
-                self._sprc.cleanup()
-            except Exception as e:  # noqa: BLE001 — must still reset local state
-                error = e
-            self._sprc = None
-        self._connected = False
-        if error is not None:
-            raise RuntimeError(f"failed to close StreamXpress session: {error}") from error
+        with self._lock:
+            error = None
+            if self._sprc is not None:
+                try:
+                    self._sprc.cleanup()
+                except Exception as e:  # noqa: BLE001 — must still reset local state
+                    error = e
+                self._sprc = None
+            self._connected = False
+            if error is not None:
+                raise RuntimeError(f"failed to close StreamXpress session: {error}") from error
 
     def _ensure_connected(self) -> SPRC_client:
         if not self._connected or self._sprc is None:
@@ -118,16 +124,17 @@ class StreamXpressClient:
           mark the local session stale so the next call reports a clear
           "not connected" instead of a blank SOAP failure.
         """
-        sprc = self._ensure_connected()
-        try:
-            return fn(sprc)
-        except SpRcException as e:
-            if e.ErrorCode in _TRANSPORT_ERROR_CODES:
+        with self._lock:
+            sprc = self._ensure_connected()
+            try:
+                return fn(sprc)
+            except SpRcException as e:
+                if e.ErrorCode in _TRANSPORT_ERROR_CODES:
+                    self._connected = False
+                _raise_sprc_error(e)
+            except OSError as e:
                 self._connected = False
-            _raise_sprc_error(e)
-        except OSError as e:
-            self._connected = False
-            raise RuntimeError(f"StreamXpress communication error: {e}") from e
+                raise RuntimeError(f"StreamXpress communication error: {e}") from e
 
     # ── Port discovery ──
 

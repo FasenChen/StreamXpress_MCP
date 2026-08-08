@@ -1,5 +1,7 @@
 """StreamXpress MCP Server — FastMCP instance with tool registrations."""
 
+import threading
+
 from fastmcp import FastMCP
 
 from .client import StreamXpressClient
@@ -14,20 +16,23 @@ mcp = FastMCP("streamxpress-mcp")
 # ── Global client singleton ──
 
 _client: StreamXpressClient | None = None
+_client_lock = threading.Lock()
 
 
 def get_client() -> StreamXpressClient:
     """Return the global singleton client, creating it if needed."""
     global _client
     if _client is None:
-        cfg = load_config()
-        wsdl = resolve_wsdl_path(cfg)
-        if wsdl is not None:
-            _client = StreamXpressClient(
-                sprc_factory=lambda: SPRC_client(wsdl_template=wsdl)
-            )
-        else:
-            _client = StreamXpressClient()
+        with _client_lock:
+            if _client is None:
+                cfg = load_config()
+                wsdl = resolve_wsdl_path(cfg)
+                if wsdl is not None:
+                    _client = StreamXpressClient(
+                        sprc_factory=lambda: SPRC_client(wsdl_template=wsdl)
+                    )
+                else:
+                    _client = StreamXpressClient()
     return _client
 
 
