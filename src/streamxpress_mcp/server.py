@@ -60,6 +60,44 @@ def disconnect() -> dict:
     return {"status": "disconnected"}
 
 
+@mcp.tool()
+def get_remote_version() -> dict:
+    """Get the SpRcApi version running on the connected StreamXpress server."""
+    return get_client().get_remote_version()
+
+
+@mcp.tool()
+def get_remote_dtapi_version() -> dict:
+    """Get the DTAPI version StreamXpress was built with (server side)."""
+    return get_client().get_remote_dtapi_version()
+
+
+@mcp.tool()
+def get_app_info() -> dict:
+    """Get application name and version of the connected StreamXpress."""
+    return get_client().get_app_info()
+
+
+@mcp.tool()
+def show_window(show: bool) -> dict:
+    """Show or hide the StreamXpress application window on the server.
+
+    Args:
+        show: True to show the window, False to hide it.
+    """
+    client = get_client()
+    client.show_window(show)
+    return {"status": "ok", "show": show}
+
+
+@mcp.tool()
+def clear_errors() -> dict:
+    """Clear the playout error counters (e.g. underflows) on the server."""
+    client = get_client()
+    client.clear_errors()
+    return {"status": "ok"}
+
+
 # ── Port discovery tools ──
 
 OUTPUT_TYPE_LABELS = {

@@ -88,6 +88,29 @@ class StreamXpressClient:
         sprc = self._ensure_connected()
         sprc.set_playout_state(SPRC.STATE_STOP)
 
+    # ── Session & version ──
+
+    def get_remote_version(self) -> dict:
+        sprc = self._ensure_connected()
+        return _to_dict(sprc.get_remote_version())
+
+    def get_remote_dtapi_version(self) -> dict:
+        sprc = self._ensure_connected()
+        return _to_dict(sprc.get_remote_dtapi_version())
+
+    def get_app_info(self) -> dict:
+        sprc = self._ensure_connected()
+        name, version = sprc.get_app_info()
+        return {"app_name": name, "version": _to_dict(version)}
+
+    def show_window(self, show: bool) -> None:
+        sprc = self._ensure_connected()
+        sprc.show_window(show)
+
+    def clear_errors(self) -> None:
+        sprc = self._ensure_connected()
+        sprc.clear_errors()
+
     # ── Status ──
 
     def get_status(self) -> dict:

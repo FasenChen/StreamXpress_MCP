@@ -258,6 +258,8 @@ EXPECTED_TOOL_NAMES = {
     "connect", "disconnect", "scan_ports", "select_port", "open_file",
     "start", "stop", "get_status", "set_rate", "set_tsoip_params",
     "set_rf_params", "set_asi_params", "launch",
+    "get_remote_version", "get_remote_dtapi_version", "get_app_info",
+    "show_window", "clear_errors",
 }
 
 
@@ -360,3 +362,63 @@ class TestSerializationHelpers:
 
         assert SpRcVersion(MajorVersion=1, MinorVersion=2, BugFixVersion=3, BuildNumber=4).MajorVersion == 1
         assert SpRcCmmbPars(Bandwidth=0, AreaId=1, TxId=2).AreaId == 1
+
+
+class TestClientSessionVersion:
+    def test_get_remote_version(self, client, mock_sprc):
+        from streamxpress_mcp.sprc_import import SpRcVersion
+
+        mock_sprc.get_remote_version.return_value = SpRcVersion(
+            MajorVersion=1, MinorVersion=12, BugFixVersion=0, BuildNumber=21)
+        client.connect("http://localhost", 5000)
+        assert client.get_remote_version() == {
+            "MajorVersion": 1, "MinorVersion": 12, "BugFixVersion": 0, "BuildNumber": 21}
+
+    def test_get_remote_dtapi_version(self, client, mock_sprc):
+        from streamxpress_mcp.sprc_import import SpRcVersion
+
+        mock_sprc.get_remote_dtapi_version.return_value = SpRcVersion(
+            MajorVersion=6, MinorVersion=3, BugFixVersion=2, BuildNumber=224)
+        client.connect("http://localhost", 5000)
+        assert client.get_remote_dtapi_version()["MinorVersion"] == 3
+
+    def test_get_app_info(self, client, mock_sprc):
+        from streamxpress_mcp.sprc_import import SpRcVersion
+
+        mock_sprc.get_app_info.return_value = (
+            "StreamXpress",
+            SpRcVersion(MajorVersion=3, MinorVersion=31, BugFixVersion=0, BuildNumber=772),
+        )
+        client.connect("http://localhost", 5000)
+        assert client.get_app_info() == {
+            "app_name": "StreamXpress",
+            "version": {"MajorVersion": 3, "MinorVersion": 31, "BugFixVersion": 0, "BuildNumber": 772},
+        }
+
+    def test_show_window(self, client, mock_sprc):
+        client.connect("http://localhost", 5000)
+        client.show_window(True)
+        mock_sprc.show_window.assert_called_once_with(True)
+
+    def test_clear_errors(self, client, mock_sprc):
+        client.connect("http://localhost", 5000)
+        client.clear_errors()
+        mock_sprc.clear_errors.assert_called_once()
+
+
+class TestServerSessionVersionTools:
+    @patch("streamxpress_mcp.server.get_client")
+    def test_get_remote_version_tool(self, mock_get_client):
+        mock_client = MagicMock()
+        mock_client.get_remote_version.return_value = {"MajorVersion": 1}
+        mock_get_client.return_value = mock_client
+        from streamxpress_mcp.server import get_remote_version
+        assert get_remote_version() == {"MajorVersion": 1}
+
+    @patch("streamxpress_mcp.server.get_client")
+    def test_show_window_tool(self, mock_get_client):
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
+        from streamxpress_mcp.server import show_window
+        assert show_window(False) == {"status": "ok", "show": False}
+        mock_client.show_window.assert_called_once_with(False)
