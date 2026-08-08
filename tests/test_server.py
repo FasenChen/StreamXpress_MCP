@@ -263,6 +263,8 @@ EXPECTED_TOOL_NAMES = {
     "get_asi_pars", "get_cmmb_pars", "get_mod_pars", "get_rf_pars",
     "get_tsoip_pars", "get_spi_pars", "get_hw_noise_pars", "get_iq_gain",
     "get_signal_source", "get_use_nit",
+    "get_channel_modelling_pars", "get_dvb_t2_group", "get_dvb_t2_pars",
+    "get_isdb_t_pars", "get_tdt_adapt_pars", "get_tsg_pars", "get_sfn_status",
 }
 
 
@@ -481,6 +483,76 @@ class TestServerParameterGetterTools:
     def test_getter_tool_returns_client_result(self, mock_get_client, tool_name, method):
         mock_client = MagicMock()
         mock_client.get_use_nit.return_value = True
+        mock_get_client.return_value = mock_client
+        from streamxpress_mcp import server as server_mod
+        tool = getattr(server_mod, tool_name)
+        assert tool() == getattr(mock_client, method).return_value
+
+
+class TestClientComplexGetters:
+    def _connect(self, client):
+        client.connect("http://localhost", 5000)
+
+    def test_get_channel_modelling_pars_nested_paths(self, client, mock_sprc):
+        from streamxpress_mcp.sprc_import import SpRcCmPars, SpRcCmPath
+
+        mock_sprc.get_channel_modelling_pars.return_value = SpRcCmPars(
+            CmEnable=True, AwgnEnable=True, Snr=20.0, PathsEnable=True,
+            Paths=[SpRcCmPath(Type=0, Attenuation=-10.0, Delay=1.5, Phase=90.0, Doppler=0.0)])
+        self._connect(client)
+        result = client.get_channel_modelling_pars()
+        assert result["CmEnable"] is True
+        assert result["Paths"][0]["Delay"] == 1.5
+
+    def test_get_isdb_t_pars_pid2layer(self, client, mock_sprc):
+        from streamxpress_mcp.sprc_import import (
+            SpRcIsdbtPars, SpRcIsdbtLayerPars, DTAPI)
+
+        mock_sprc.get_isdb_t_pars.return_value = SpRcIsdbtPars(
+            DoMux=True, BType=0, Mode=3, Guard=2, PartialRx=0, Emergency=0,
+            IipPid=0,
+            LayerPars=[SpRcIsdbtLayerPars(NumSegments=13, Modulation=DTAPI.ISDBT_MOD_QAM64,
+                                          CodeRate=0, TimeInterleave=0)],
+            Pid2Layer={100: 1}, LayerOther=0, ParXtra0=0)
+        self._connect(client)
+        result = client.get_isdb_t_pars()
+        assert result["Pid2Layer"] == {100: 1}
+        assert result["LayerPars"][0]["NumSegments"] == 13
+
+    def test_get_tdt_adapt_pars_nested_datetime(self, client, mock_sprc):
+        from streamxpress_mcp.sprc_import import SpRcTdtAdaptPars, SpRcDateTime, SPRC
+
+        mock_sprc.get_tdt_adapt_pars.return_value = SpRcTdtAdaptPars(
+            TdtAdaptMode=SPRC.TDT_ADAPT_USE_SPECIFIED,
+            TdtDateTime=SpRcDateTime(Year=2026, Month=8, Day=8, Hour=12, Minute=0, Second=0))
+        self._connect(client)
+        result = client.get_tdt_adapt_pars()
+        assert result["TdtDateTime"]["Year"] == 2026
+        assert result["TdtAdaptMode"] == SPRC.TDT_ADAPT_USE_SPECIFIED
+
+    def test_get_sfn_status(self, client, mock_sprc):
+        from streamxpress_mcp.sprc_import import SpRcSfnStatus, SPRC
+
+        mock_sprc.get_sfn_status.return_value = SpRcSfnStatus(
+            GpsStatus=SPRC.GPS_STATUS_10MHZ_1PPS_SYNC, GpsTime=500_000_000,
+            SfnMode=SPRC.SFN_MODE_1_PPS, SfnStatus=SPRC.SFN_STATUS_IN_SYNC)
+        self._connect(client)
+        assert client.get_sfn_status()["SfnStatus"] == SPRC.SFN_STATUS_IN_SYNC
+
+
+class TestServerComplexGetterTools:
+    @pytest.mark.parametrize("tool_name,method", [
+        ("get_channel_modelling_pars", "get_channel_modelling_pars"),
+        ("get_dvb_t2_group", "get_dvb_t2_group"),
+        ("get_dvb_t2_pars", "get_dvb_t2_pars"),
+        ("get_isdb_t_pars", "get_isdb_t_pars"),
+        ("get_tdt_adapt_pars", "get_tdt_adapt_pars"),
+        ("get_tsg_pars", "get_tsg_pars"),
+        ("get_sfn_status", "get_sfn_status"),
+    ])
+    @patch("streamxpress_mcp.server.get_client")
+    def test_complex_getter_tool_returns_client_result(self, mock_get_client, tool_name, method):
+        mock_client = MagicMock()
         mock_get_client.return_value = mock_client
         from streamxpress_mcp import server as server_mod
         tool = getattr(server_mod, tool_name)

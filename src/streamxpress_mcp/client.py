@@ -167,6 +167,34 @@ class StreamXpressClient:
         sprc = self._ensure_connected()
         return sprc.get_use_nit()
 
+    def get_channel_modelling_pars(self) -> dict:
+        sprc = self._ensure_connected()
+        return _to_dict(sprc.get_channel_modelling_pars())
+
+    def get_dvb_t2_group(self) -> dict:
+        sprc = self._ensure_connected()
+        return _to_dict(sprc.get_dvb_t2_group())
+
+    def get_dvb_t2_pars(self) -> dict:
+        sprc = self._ensure_connected()
+        return _to_dict(sprc.get_dvb_t2_pars())
+
+    def get_isdb_t_pars(self) -> dict:
+        sprc = self._ensure_connected()
+        return _to_dict(sprc.get_isdb_t_pars())
+
+    def get_tdt_adapt_pars(self) -> dict:
+        sprc = self._ensure_connected()
+        return _to_dict(sprc.get_tdt_adapt_pars())
+
+    def get_tsg_pars(self) -> dict:
+        sprc = self._ensure_connected()
+        return _to_dict(sprc.get_tsg_pars())
+
+    def get_sfn_status(self) -> dict:
+        sprc = self._ensure_connected()
+        return _to_dict(sprc.get_sfn_status())
+
     # ── Parameters ──
 
     def set_rate(self, bps: int) -> None:

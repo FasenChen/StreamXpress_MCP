@@ -254,6 +254,48 @@ def get_use_nit() -> bool:
 
 
 @mcp.tool()
+def get_channel_modelling_pars() -> dict:
+    """Get current channel modelling parameters (noise + multi-path)."""
+    return get_client().get_channel_modelling_pars()
+
+
+@mcp.tool()
+def get_dvb_t2_group() -> dict:
+    """Get the currently selected DVB-T2 group and set names."""
+    return get_client().get_dvb_t2_group()
+
+
+@mcp.tool()
+def get_dvb_t2_pars() -> dict:
+    """Get current DVB-T2 modulation parameters (follows SpRcDvbT2Pars fields)."""
+    return get_client().get_dvb_t2_pars()
+
+
+@mcp.tool()
+def get_isdb_t_pars() -> dict:
+    """Get current ISDB-T modulation parameters (layers + PID-to-layer map)."""
+    return get_client().get_isdb_t_pars()
+
+
+@mcp.tool()
+def get_tdt_adapt_pars() -> dict:
+    """Get current TDT/TOT adaptation parameters."""
+    return get_client().get_tdt_adapt_pars()
+
+
+@mcp.tool()
+def get_tsg_pars() -> dict:
+    """Get current test signal generator parameters."""
+    return get_client().get_tsg_pars()
+
+
+@mcp.tool()
+def get_sfn_status() -> dict:
+    """Get current GPS and SFN playout status."""
+    return get_client().get_sfn_status()
+
+
+@mcp.tool()
 def set_rate(rate_bps: int) -> dict:
     """Set the TS playout bitrate in bits per second (188-byte packets).
 
