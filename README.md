@@ -99,6 +99,52 @@ python -m streamxpress_mcp
 | `set_tsoip_params` | 配置 UDP/RTP TS-over-IP 输出参数 |
 | `set_rf_params` | 设置 RF 频率和电平 |
 | `set_asi_params` | 设置 ASI 重复用和包模式 |
+| `get_remote_version` | 获取服务器端 SpRcApi 版本 |
+| `get_remote_dtapi_version` | 获取服务器端 DTAPI 版本 |
+| `get_app_info` | 获取应用名称与版本 |
+| `show_window` | 显示/隐藏 StreamXpress 窗口 |
+| `clear_errors` | 清除播放错误计数器 |
+| `get_asi_pars` | 读取 DVB-ASI 参数 |
+| `get_cmmb_pars` | 读取 CMMB 调制参数 |
+| `get_mod_pars` | 读取调制参数（ModType/SymRate 等） |
+| `get_rf_pars` | 读取 RF 参数（频率/电平/SpecInv/CW） |
+| `get_tsoip_pars` | 读取 TS-over-IP 参数 |
+| `get_spi_pars` | 读取 DVB-SPI 参数 |
+| `get_hw_noise_pars` | 读取硬件噪声参数（DTA-107/DTA-2107） |
+| `get_iq_gain` | 读取 IQ 增益（0.1 dB） |
+| `get_signal_source` | 读取信号源（文件/测试信号发生器） |
+| `get_use_nit` | 读取 NIT 表生成开关 |
+| `get_channel_modelling_pars` | 读取信道建模参数（噪声+多径） |
+| `get_dvb_t2_group` | 读取 DVB-T2 参数组选择 |
+| `get_dvb_t2_pars` | 读取 DVB-T2 调制参数 |
+| `get_isdb_t_pars` | 读取 ISDB-T 调制参数 |
+| `get_tdt_adapt_pars` | 读取 TDT/TOT 适配参数 |
+| `get_tsg_pars` | 读取测试信号发生器参数 |
+| `get_sfn_status` | 读取 GPS 与 SFN 播放状态 |
+| `open_channel_modelling_file` | 打开信道建模文件（.chmx） |
+| `save_channel_modelling_settings` | 保存信道建模设置（.chmx） |
+| `save_settings` | 保存全部设置（.xml） |
+| `normalise` | 归一化输出电平 |
+| `set_loop_flags` | 设置循环适配标志（CC/PCR/TDT/Wrap） |
+| `set_iq_gain` | 设置 IQ 增益（0.1 dB） |
+| `set_remux` | 开关实时重复用 |
+| `set_signal_source` | 设置信号源（文件/测试信号发生器） |
+| `set_use_nit` | 开关 NIT 表生成 |
+| `set_sfn_mode` | 设置 SFN 模式（禁用/1PPS） |
+| `set_sub_loop_pars` | 设置文件子循环位置 |
+| `select_dta_plus` | 选择 DtaPlus 衰减器设备 |
+| `set_cmmb_pars` | 设置 CMMB 调制参数 |
+| `set_hw_noise_pars` | 设置硬件噪声参数 |
+| `set_spi_pars` | 设置 DVB-SPI 传输参数 |
+| `set_tsg_pars` | 设置测试信号发生器参数 |
+| `set_dvb_t2_group` | 选择 DVB-T2 参数组 |
+| `set_mod_pars` | 设置调制参数 |
+| `set_channel_modelling_pars` | 设置信道建模参数（噪声+多径） |
+| `set_dvb_t2_pars` | 设置 DVB-T2 调制参数 |
+| `set_isdb_t_pars` | 设置 ISDB-T 调制参数 |
+| `set_tdt_adapt_pars` | 设置 TDT/TOT 适配参数 |
+| `set_playout_state_sfn` | SFN 同步播放/停止（带 GPS 开始时间） |
+| `wait_for_condition` | 阻塞等待播放条件（如停止） |
 
 ## AI 交互示例
 
