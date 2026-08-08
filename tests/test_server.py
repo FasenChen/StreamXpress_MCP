@@ -271,6 +271,8 @@ EXPECTED_TOOL_NAMES = {
     "set_use_nit", "set_sfn_mode", "set_sub_loop_pars", "select_dta_plus",
     "set_cmmb_pars", "set_hw_noise_pars", "set_spi_pars", "set_tsg_pars",
     "set_dvb_t2_group",
+    "set_mod_pars", "set_channel_modelling_pars", "set_dvb_t2_pars",
+    "set_isdb_t_pars", "set_tdt_adapt_pars", "set_playout_state_sfn",
 }
 
 
@@ -719,3 +721,114 @@ class TestServerStructSetterTools:
         from streamxpress_mcp import server as server_mod
         tool = getattr(server_mod, tool_name)
         assert tool(**{arg_name: arg_value}) == {"status": "ok"}
+
+
+class TestClientComplexSetters:
+    def _connect(self, client):
+        client.connect("http://localhost", 5000)
+
+    def test_set_mod_pars(self, client, mock_sprc):
+        from streamxpress_mcp.sprc_import import SPRC
+
+        self._connect(client)
+        client.set_mod_pars({"ModType": SPRC.MOD_DVBS2, "ParXtra0": 0, "ParXtra1": 0, "ParXtra2": 0, "SymRate": 27_500_000})
+        call_args = mock_sprc.set_mod_pars.call_args[0][0]
+        assert call_args.ModType == SPRC.MOD_DVBS2
+        assert call_args.SymRate == 27_500_000
+
+    def test_set_channel_modelling_pars_with_paths(self, client, mock_sprc):
+        from streamxpress_mcp.sprc_import import SPRC
+
+        self._connect(client)
+        client.set_channel_modelling_pars({
+            "CmEnable": True, "AwgnEnable": True, "Snr": 20.0, "PathsEnable": True,
+            "Paths": [{"Type": SPRC.CONSTANT_DELAY, "Attenuation": -10.0,
+                       "Delay": 1.5, "Phase": 90.0, "Doppler": 0.0}],
+        })
+        call_args = mock_sprc.set_channel_modelling_pars.call_args[0][0]
+        assert call_args.CmEnable is True
+        assert call_args.Paths[0].Delay == 1.5
+
+    def test_set_tdt_adapt_pars_nested_datetime(self, client, mock_sprc):
+        from streamxpress_mcp.sprc_import import SPRC
+
+        self._connect(client)
+        client.set_tdt_adapt_pars({
+            "TdtAdaptMode": SPRC.TDT_ADAPT_USE_SPECIFIED,
+            "TdtDateTime": {"Year": 2026, "Month": 8, "Day": 8, "Hour": 12, "Minute": 0, "Second": 0},
+        })
+        call_args = mock_sprc.set_tdt_adapt_pars.call_args[0][0]
+        assert call_args.TdtAdaptMode == SPRC.TDT_ADAPT_USE_SPECIFIED
+        assert call_args.TdtDateTime.Year == 2026
+
+    def test_set_playout_state_sfn(self, client, mock_sprc):
+        from streamxpress_mcp.sprc_import import SPRC
+
+        self._connect(client)
+        client.set_playout_state_sfn(SPRC.STATE_PLAY, 500_000_000)
+        call_args = mock_sprc.set_playout_state_sfn.call_args[0][0]
+        assert call_args.PlayoutState == SPRC.STATE_PLAY
+        assert call_args.SfnStartTime == 500_000_000
+
+    def test_set_isdb_t_pars(self, client, mock_sprc):
+        from streamxpress_mcp.sprc_import import DTAPI
+
+        self._connect(client)
+        client.set_isdb_t_pars({
+            "DoMux": True, "BType": 0, "Mode": 3, "Guard": 2, "PartialRx": 0,
+            "Emergency": 0, "IipPid": 0,
+            "LayerPars": [{"NumSegments": 13, "Modulation": DTAPI.ISDBT_MOD_QAM64,
+                           "CodeRate": 0, "TimeInterleave": 0}],
+            "Pid2Layer": {100: 1}, "LayerOther": 0, "ParXtra0": 0,
+        })
+        call_args = mock_sprc.set_isdb_t_pars.call_args[0][0]
+        assert call_args.Pid2Layer == {100: 1}
+        assert call_args.LayerPars[0].NumSegments == 13
+
+    def test_set_dvb_t2_pars(self, client, mock_sprc):
+        from streamxpress_mcp.sprc_import import SPRC, DTAPI
+
+        self._connect(client)
+        client.set_dvb_t2_pars({
+            "T2Version": 1, "Bandwidth": DTAPI.DVBT2_8MHZ, "FftMode": DTAPI.DVBT2_FFT_8K,
+            "Miso": DTAPI.DVBT2_MISO_OFF, "GuardInterval": DTAPI.DVBT2_GI_1_32,
+            "Papr": DTAPI.DVBT2_PAPR_NONE, "BwtExt": 0, "PilotPattern": 4,
+            "NumT2Frames": 2, "NumDataSyms": 60, "L1Modulation": 1,
+            "FefEnable": False, "FefType": 0, "FefLength": 0, "FefS1": 2, "FefS2": 1,
+            "FefInterval": 1, "FefSignal": 0, "CellId": 0, "NetworkId": 0,
+            "T2SystemId": 0, "Frequency": 500_000_000,
+            "Hem": False, "Npd": False, "IssyEnabled": False, "Id": 0, "GroupId": 0,
+            "Type": 0, "CodeRate": DTAPI.DVBT2_COD_3_4, "Modulation": 2,
+            "Rotation": False, "FecType": 0, "TimeIlLength": 0, "TimeIlType": 0,
+            "InBandFlag": False, "NumBlocks": 0,
+            "FollowMode": SPRC.T2_FOLLOW_OFF,
+        })
+        call_args = mock_sprc.set_dvb_t2_pars.call_args[0][0]
+        assert call_args.Bandwidth == DTAPI.DVBT2_8MHZ
+        assert call_args.Frequency == 500_000_000
+
+
+class TestServerComplexSetterTools:
+    @pytest.mark.parametrize("tool_name,arg_name,arg_value", [
+        ("set_mod_pars", "mod_pars", {"ModType": 6, "ParXtra0": 0, "ParXtra1": 0, "ParXtra2": 0, "SymRate": 27_500_000}),
+        ("set_channel_modelling_pars", "cm_pars", {"CmEnable": True, "AwgnEnable": True, "Snr": 20.0, "PathsEnable": False, "Paths": []}),
+        ("set_dvb_t2_pars", "dvb_t2_pars", {}),
+        ("set_isdb_t_pars", "isdb_t_pars", {}),
+        ("set_tdt_adapt_pars", "tdt_adapt_pars", {"TdtAdaptMode": 2, "TdtDateTime": {}}),
+    ])
+    @patch("streamxpress_mcp.server.get_client")
+    def test_complex_setter_tool_returns_ok(self, mock_get_client, tool_name, arg_name, arg_value):
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
+        from streamxpress_mcp import server as server_mod
+        tool = getattr(server_mod, tool_name)
+        assert tool(**{arg_name: arg_value}) == {"status": "ok"}
+
+    @patch("streamxpress_mcp.server.get_client")
+    def test_set_playout_state_sfn_tool(self, mock_get_client):
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
+        from streamxpress_mcp.server import set_playout_state_sfn
+        assert set_playout_state_sfn(playout_state=1, sfn_start_time=500_000_000) == {
+            "status": "ok", "playout_state": 1, "sfn_start_time": 500_000_000}
+        mock_client.set_playout_state_sfn.assert_called_once_with(1, 500_000_000)

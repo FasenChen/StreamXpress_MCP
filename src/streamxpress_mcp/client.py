@@ -6,6 +6,8 @@ from .sprc_import import SPRC_client, SpRcPortDesc, SpRcException, SPRC_RESULT
 from .sprc_import import (
     SpRcAsiPars, SpRcTsoipPars, SpRcRfPars, SpRcModPars, SpRcSubLoopPars,
     SpRcCmmbPars, SpRcHwNoisePars, SpRcSpiPars, SpRcTsgPars, SpRcDvbT2Group,
+    SpRcCmPars, SpRcCmPath, SpRcDvbT2Pars, SpRcIsdbtPars, SpRcIsdbtLayerPars,
+    SpRcDateTime, SpRcTdtAdaptPars, SpRcPlayoutSfnPars,
 )
 from .sprc_import import SPRC, DTAPI
 
@@ -329,3 +331,40 @@ class StreamXpressClient:
     def set_dvb_t2_group(self, pars: dict) -> None:
         sprc = self._ensure_connected()
         sprc.set_dvb_t2_group(SpRcDvbT2Group(**pars))
+
+    def set_mod_pars(self, pars: dict) -> None:
+        sprc = self._ensure_connected()
+        sprc.set_mod_pars(SpRcModPars(**pars))
+
+    def set_channel_modelling_pars(self, pars: dict) -> None:
+        sprc = self._ensure_connected()
+        paths = [SpRcCmPath(**p) for p in pars.get("Paths", [])]
+        cm_pars = SpRcCmPars(**{k: v for k, v in pars.items() if k != "Paths"}, Paths=paths)
+        sprc.set_channel_modelling_pars(cm_pars)
+
+    def set_dvb_t2_pars(self, pars: dict) -> None:
+        sprc = self._ensure_connected()
+        sprc.set_dvb_t2_pars(SpRcDvbT2Pars(**pars))
+
+    def set_isdb_t_pars(self, pars: dict) -> None:
+        sprc = self._ensure_connected()
+        layer_pars = [SpRcIsdbtLayerPars(**lp) for lp in pars.get("LayerPars", [])]
+        isdbt_pars = SpRcIsdbtPars(
+            **{k: v for k, v in pars.items() if k not in ("LayerPars", "Pid2Layer")},
+            LayerPars=layer_pars,
+            Pid2Layer=pars.get("Pid2Layer", {}),
+        )
+        sprc.set_isdb_t_pars(isdbt_pars)
+
+    def set_tdt_adapt_pars(self, pars: dict) -> None:
+        sprc = self._ensure_connected()
+        dt = SpRcDateTime(**(pars.get("TdtDateTime") or {}))
+        sprc.set_tdt_adapt_pars(
+            SpRcTdtAdaptPars(TdtAdaptMode=pars["TdtAdaptMode"], TdtDateTime=dt)
+        )
+
+    def set_playout_state_sfn(self, playout_state: int, sfn_start_time: int = 0) -> None:
+        sprc = self._ensure_connected()
+        sprc.set_playout_state_sfn(
+            SpRcPlayoutSfnPars(PlayoutState=playout_state, SfnStartTime=sfn_start_time)
+        )

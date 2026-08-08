@@ -552,6 +552,86 @@ def set_dvb_t2_group(dvb_t2_group: dict) -> dict:
     return {"status": "ok"}
 
 
+@mcp.tool()
+def set_mod_pars(mod_pars: dict) -> dict:
+    """Set modulation parameters for the selected modulator port.
+
+    Args:
+        mod_pars: dict with keys ModType (SPRC.MOD_*), ParXtra0/1/2 (int), SymRate (int baud, -1 if unused).
+    """
+    client = get_client()
+    client.set_mod_pars(mod_pars)
+    return {"status": "ok"}
+
+
+@mcp.tool()
+def set_channel_modelling_pars(cm_pars: dict) -> dict:
+    """Set channel modelling parameters (noise injection + multi-path).
+
+    Note: the vendored SpRcApi is v1.11, so the v1.12 UseManualSeed/ManualSeed fields are NOT supported.
+
+    Args:
+        cm_pars: dict with keys CmEnable (bool), AwgnEnable (bool), Snr (float dB),
+                 PathsEnable (bool), Paths (list of {Type, Attenuation, Delay, Phase, Doppler}).
+    """
+    client = get_client()
+    client.set_channel_modelling_pars(cm_pars)
+    return {"status": "ok"}
+
+
+@mcp.tool()
+def set_dvb_t2_pars(dvb_t2_pars: dict) -> dict:
+    """Set DVB-T2 modulation parameters (follows SpRcDvbT2Pars field names).
+
+    Args:
+        dvb_t2_pars: dict of SpRcDvbT2Pars fields, e.g. Bandwidth=DTAPI.DVBT2_8MHZ,
+                     FftMode=DTAPI.DVBT2_FFT_8K, GuardInterval=..., optional FollowMode (default SPRC.T2_FOLLOW_OFF).
+    """
+    client = get_client()
+    client.set_dvb_t2_pars(dvb_t2_pars)
+    return {"status": "ok"}
+
+
+@mcp.tool()
+def set_isdb_t_pars(isdb_t_pars: dict) -> dict:
+    """Set ISDB-T modulation parameters.
+
+    Args:
+        isdb_t_pars: dict with keys DoMux, BType, Mode, Guard, PartialRx, Emergency, IipPid,
+                     LayerPars (list of {NumSegments, Modulation, CodeRate, TimeInterleave}),
+                     Pid2Layer (dict PID->layer flags), LayerOther, ParXtra0, Virtual13Segm.
+    """
+    client = get_client()
+    client.set_isdb_t_pars(isdb_t_pars)
+    return {"status": "ok"}
+
+
+@mcp.tool()
+def set_tdt_adapt_pars(tdt_adapt_pars: dict) -> dict:
+    """Set TDT/TOT adaptation parameters.
+
+    Args:
+        tdt_adapt_pars: dict with key TdtAdaptMode (SPRC.TDT_ADAPT_*), and when mode is
+                        SPRC.TDT_ADAPT_USE_SPECIFIED, key TdtDateTime = {Year, Month, Day, Hour, Minute, Second}.
+    """
+    client = get_client()
+    client.set_tdt_adapt_pars(tdt_adapt_pars)
+    return {"status": "ok"}
+
+
+@mcp.tool()
+def set_playout_state_sfn(playout_state: int, sfn_start_time: int = 0) -> dict:
+    """Start/stop SFN-synchronised playout with an absolute GPS start time.
+
+    Args:
+        playout_state: SPRC.STATE_PLAY=1 or SPRC.STATE_STOP=2.
+        sfn_start_time: GPS start time in ns, 0..999,999,999 (ignored on stop).
+    """
+    client = get_client()
+    client.set_playout_state_sfn(playout_state, sfn_start_time)
+    return {"status": "ok", "playout_state": playout_state, "sfn_start_time": sfn_start_time}
+
+
 # ── Launch tool ──
 
 @mcp.tool()
