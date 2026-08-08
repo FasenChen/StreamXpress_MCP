@@ -1017,3 +1017,34 @@ class TestErrorBoundary:
         result = disconnect()
         assert result["status"] == "disconnected"
         assert "failed to close" in result["warning"]
+
+
+class TestJsonBoundary:
+    """Getter 输出必须能通过严格 JSON 序列化（allow_nan=False）。"""
+
+    def test_jsonable_rejects_nan(self):
+        from streamxpress_mcp.client import _jsonable
+
+        with pytest.raises(ValueError, match="non-finite"):
+            _jsonable(float("nan"))
+
+    def test_jsonable_rejects_inf(self):
+        from streamxpress_mcp.client import _jsonable
+
+        with pytest.raises(ValueError, match="non-finite"):
+            _jsonable(float("inf"))
+
+    def test_getter_outputs_pass_strict_json(self, client, mock_sprc):
+        import json
+
+        from streamxpress_mcp.sprc_import import SpRcRfPars, SpRcSfnStatus, SpRcCmPars
+
+        mock_sprc.get_rf_pars.return_value = SpRcRfPars(Frequency=500_000_000, Level=-37.5)
+        mock_sprc.get_sfn_status.return_value = SpRcSfnStatus(
+            GpsStatus=0, GpsTime=500_000_000, SfnMode=0, SfnStatus=1)
+        mock_sprc.get_channel_modelling_pars.return_value = SpRcCmPars(
+            CmEnable=True, AwgnEnable=True, Snr=20.0, PathsEnable=False, Paths=[])
+        client.connect("http://localhost", 5000)
+        for result in (client.get_rf_pars(), client.get_sfn_status(),
+                       client.get_channel_modelling_pars()):
+            json.dumps(result, allow_nan=False)  # 不应抛 ValueError

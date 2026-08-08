@@ -1,5 +1,6 @@
 """StreamXpressClient: singleton wrapper around SPRC_client for MCP server use."""
 
+import math
 from dataclasses import asdict
 
 from .sprc_import import SPRC_client, SpRcPortDesc, SpRcException, SPRC_RESULT
@@ -13,7 +14,13 @@ from .sprc_import import SPRC, DTAPI
 
 
 def _jsonable(value):
-    """Recursively convert asdict() output to JSON-safe types (bytes → list[int])."""
+    """Recursively convert asdict() output to JSON-safe types (bytes → list[int]).
+
+    Raises ValueError for non-finite floats (NaN/Inf), which are not valid
+    RFC 8259 JSON and would break strict parsers on the MCP client side.
+    """
+    if isinstance(value, float) and not math.isfinite(value):
+        raise ValueError(f"non-finite float {value!r} cannot be serialized to JSON")
     if isinstance(value, bytes):
         return list(value)
     if isinstance(value, list):
