@@ -532,64 +532,87 @@ def select_dta_plus(use_dta_plus: bool, serial: int) -> dict:
 
 
 @mcp.tool()
-def set_cmmb_pars(cmmb_pars: dict) -> dict:
+def set_cmmb_pars(bandwidth: int, area_id: int, tx_id: int) -> dict:
     """Set CMMB modulation parameters.
 
     Args:
-        cmmb_pars: dict with keys Bandwidth (DTAPI.CMMB_BW_2MHZ=0/8MHZ=1), AreaId (0..127), TxId (128..255).
+        bandwidth: DTAPI.CMMB_BW_2MHZ=0 / CMMB_BW_8MHZ=1.
+        area_id: Area ID (0..127).
+        tx_id: Transmitter ID (128..255).
     """
     client = get_client()
-    client.set_cmmb_pars(cmmb_pars)
+    client.set_cmmb_pars({"Bandwidth": bandwidth, "AreaId": area_id, "TxId": tx_id})
     return {"status": "ok"}
 
 
 @mcp.tool()
-def set_hw_noise_pars(hw_noise_pars: dict) -> dict:
+def set_hw_noise_pars(snr_on: bool, snr: float) -> dict:
     """Set hardware noise generator parameters (DTA-107/DTA-2107).
 
     Args:
-        hw_noise_pars: dict with keys SnrOn (bool), Snr (float dB).
+        snr_on: Enable the noise generator.
+        snr: Signal-to-noise ratio in dB.
     """
     client = get_client()
-    client.set_hw_noise_pars(hw_noise_pars)
+    client.set_hw_noise_pars({"SnrOn": snr_on, "Snr": snr})
     return {"status": "ok"}
 
 
 @mcp.tool()
-def set_spi_pars(spi_pars: dict) -> dict:
+def set_spi_pars(
+    remux: bool,
+    playout_rate: int,
+    tx_mode: int = DTAPI.TXMODE_188,
+    power: bool = False,
+) -> dict:
     """Set DVB-SPI transmission parameters.
 
     Args:
-        spi_pars: dict with keys Remux (bool), PlayoutRate (int), optional TxMode
-                  (DTAPI.TXMODE_188/192/204/ADD16/MIN16/RAW — 192 is DTA-102 only),
-                  Power (default False).
+        remux: Enable remultiplexing (add null packets to match playout_rate).
+        playout_rate: Output rate in bps (only used when remux is on).
+        tx_mode: DTAPI.TXMODE_188/192/204/ADD16/MIN16/RAW — 192 is DTA-102 only.
+        power: Power for the external adapter.
     """
     client = get_client()
-    client.set_spi_pars(spi_pars)
+    client.set_spi_pars({
+        "Remux": remux,
+        "PlayoutRate": playout_rate,
+        "TxMode": tx_mode,
+        "Power": power,
+    })
     return {"status": "ok"}
 
 
 @mcp.tool()
-def set_tsg_pars(tsg_pars: dict) -> dict:
+def set_tsg_pars(
+    type: int,
+    pid: int,
+    vid_std: int = 0,
+    flags: int = 0,
+) -> dict:
     """Set test signal generator parameters.
 
     Args:
-        tsg_pars: dict with keys Type (SPRC.TSG_TYPE_*), Pid (int), VidStd (SPRC.VIDSTD_*, only for SDI generators), optional Flags (default 0).
+        type: SPRC.TSG_TYPE_* (PRBS7/15/23/31, RP198, RP219-1, DYNAMIC...).
+        pid: PID carrying the generated stream (ignored in SDI mode).
+        vid_std: SPRC.VIDSTD_* video standard (only for SDI generators).
+        flags: Reserved, set to 0.
     """
     client = get_client()
-    client.set_tsg_pars(tsg_pars)
+    client.set_tsg_pars({"Type": type, "Pid": pid, "VidStd": vid_std, "Flags": flags})
     return {"status": "ok"}
 
 
 @mcp.tool()
-def set_dvb_t2_group(dvb_t2_group: dict) -> dict:
+def set_dvb_t2_group(group_name: str, group_ref_name: str) -> dict:
     """Select a DVB-T2 parameter group.
 
     Args:
-        dvb_t2_group: dict with keys GroupName (e.g. "VV1xx"), GroupRefName (e.g. "VV100").
+        group_name: Group name, e.g. "VV1xx".
+        group_ref_name: Specific set in the group, e.g. "VV100".
     """
     client = get_client()
-    client.set_dvb_t2_group(dvb_t2_group)
+    client.set_dvb_t2_group({"GroupName": group_name, "GroupRefName": group_ref_name})
     return {"status": "ok"}
 
 

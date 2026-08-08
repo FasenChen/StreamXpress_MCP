@@ -1,6 +1,8 @@
 import pytest
 from unittest.mock import MagicMock, patch
 
+from streamxpress_mcp.sprc_import import DTAPI
+
 
 class TestStreamXpressConnect:
     def test_connect_creates_session(self, client, mock_sprc):
@@ -729,20 +731,28 @@ class TestClientStructSetters:
 
 
 class TestServerStructSetterTools:
-    @pytest.mark.parametrize("tool_name,arg_name,arg_value", [
-        ("set_cmmb_pars", "cmmb_pars", {"Bandwidth": 0, "AreaId": 3, "TxId": 200}),
-        ("set_hw_noise_pars", "hw_noise_pars", {"SnrOn": True, "Snr": 25.0}),
-        ("set_spi_pars", "spi_pars", {"Remux": False, "PlayoutRate": 0}),
-        ("set_tsg_pars", "tsg_pars", {"Type": 1, "Pid": 100, "VidStd": 0}),
-        ("set_dvb_t2_group", "dvb_t2_group", {"GroupName": "VV1xx", "GroupRefName": "VV100"}),
+    @pytest.mark.parametrize("tool_name,kwargs,expected_pars", [
+        ("set_cmmb_pars", {"bandwidth": 0, "area_id": 3, "tx_id": 200},
+         {"Bandwidth": 0, "AreaId": 3, "TxId": 200}),
+        ("set_hw_noise_pars", {"snr_on": True, "snr": 25.0},
+         {"SnrOn": True, "Snr": 25.0}),
+        ("set_spi_pars", {"remux": False, "playout_rate": 0},
+         {"Remux": False, "PlayoutRate": 0, "TxMode": DTAPI.TXMODE_188, "Power": False}),
+        ("set_tsg_pars", {"type": 1, "pid": 100, "vid_std": 0},
+         {"Type": 1, "Pid": 100, "VidStd": 0, "Flags": 0}),
+        ("set_dvb_t2_group", {"group_name": "VV1xx", "group_ref_name": "VV100"},
+         {"GroupName": "VV1xx", "GroupRefName": "VV100"}),
     ])
     @patch("streamxpress_mcp.server.get_client")
-    def test_struct_setter_tool_returns_ok(self, mock_get_client, tool_name, arg_name, arg_value):
+    def test_struct_setter_tool_returns_ok(self, mock_get_client, tool_name, kwargs, expected_pars):
         mock_client = MagicMock()
         mock_get_client.return_value = mock_client
         from streamxpress_mcp import server as server_mod
         tool = getattr(server_mod, tool_name)
-        assert tool(**{arg_name: arg_value}) == {"status": "ok"}
+        assert tool(**kwargs) == {"status": "ok"}
+        # 扁平参数被正确组装成 client 期望的 CamelCase dict
+        method = getattr(mock_client, tool_name)
+        method.assert_called_once_with(expected_pars)
 
 
 class TestClientComplexSetters:
