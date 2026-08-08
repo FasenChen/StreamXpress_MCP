@@ -54,7 +54,7 @@ _TRANSPORT_ERROR_CODES = {SPRC_RESULT.E_COMMUNICATION, SPRC_RESULT.E_SESSION_NOT
 def _raise_sprc_error(e: SpRcException) -> None:
     """把 SpRcException 转成带错误码名/值的可诊断 RuntimeError。"""
     raise RuntimeError(
-        f"StreamXpress error {e.ErrorCode.name} ({e.ErrorCode.value}): {e or 'no detail'}"
+        f"StreamXpress error {e.ErrorCode.name} ({e.ErrorCode.value}): {str(e) or 'no detail'}"
     ) from e
 
 
@@ -123,18 +123,22 @@ class StreamXpressClient:
         - transport failures (E_COMMUNICATION / E_SESSION_NOT_OPEN / OSError)
           mark the local session stale so the next call reports a clear
           "not connected" instead of a blank SOAP failure.
+
+        The lock is held only while resolving the session reference — never
+        across the SOAP call itself, so a long-running call (e.g. an unbounded
+        wait_for_condition) cannot block every other tool.
         """
         with self._lock:
             sprc = self._ensure_connected()
-            try:
-                return fn(sprc)
-            except SpRcException as e:
-                if e.ErrorCode in _TRANSPORT_ERROR_CODES:
-                    self._connected = False
-                _raise_sprc_error(e)
-            except OSError as e:
+        try:
+            return fn(sprc)
+        except SpRcException as e:
+            if e.ErrorCode in _TRANSPORT_ERROR_CODES:
                 self._connected = False
-                raise RuntimeError(f"StreamXpress communication error: {e}") from e
+            _raise_sprc_error(e)
+        except OSError as e:
+            self._connected = False
+            raise RuntimeError(f"StreamXpress communication error: {e}") from e
 
     # ── Port discovery ──
 

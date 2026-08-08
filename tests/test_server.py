@@ -674,24 +674,27 @@ class TestClientScalarSetters:
 
 
 class TestServerScalarSetterTools:
-    @pytest.mark.parametrize("tool_name,kwargs", [
-        ("set_loop_flags", {"flags": 3}),
-        ("set_iq_gain", {"gain": 150}),
-        ("set_remux", {"enabled": True}),
-        ("set_signal_source", {"source": 0}),
-        ("set_use_nit", {"use_nit": True}),
-        ("set_sfn_mode", {"sfn_mode": 0}),
-        ("set_sub_loop_pars", {"use_subloop": True, "loop_begin_rel": 0.25, "loop_end_rel": 0.75}),
-        ("select_dta_plus", {"use_dta_plus": True, "serial": 217400002}),
+    @pytest.mark.parametrize("tool_name,kwargs,expected_args", [
+        ("set_loop_flags", {"flags": 3}, (3,)),
+        ("set_iq_gain", {"gain": 150}, (150,)),
+        ("set_remux", {"enabled": True}, (True,)),
+        ("set_signal_source", {"source": 0}, (0,)),
+        ("set_use_nit", {"use_nit": True}, (True,)),
+        ("set_sfn_mode", {"sfn_mode": 0}, (0,)),
+        ("set_sub_loop_pars", {"use_subloop": True, "loop_begin_rel": 0.25, "loop_end_rel": 0.75},
+         (True, 0.25, 0.75)),
+        ("select_dta_plus", {"use_dta_plus": True, "serial": 217400002}, (True, 217400002)),
     ])
     @patch("streamxpress_mcp.server.get_client")
-    def test_setter_tool_returns_ok(self, mock_get_client, tool_name, kwargs):
+    def test_setter_tool_returns_ok(self, mock_get_client, tool_name, kwargs, expected_args):
         mock_client = MagicMock()
         mock_get_client.return_value = mock_client
         from streamxpress_mcp import server as server_mod
         tool = getattr(server_mod, tool_name)
         result = tool(**kwargs)
         assert result["status"] == "ok"
+        # T1: 参数必须完整透传给 client，防止载荷静默丢失/互换
+        getattr(mock_client, tool_name).assert_called_once_with(*expected_args)
 
 
 class TestClientStructSetters:
@@ -877,6 +880,8 @@ class TestServerComplexSetterTools:
         from streamxpress_mcp import server as server_mod
         tool = getattr(server_mod, tool_name)
         assert tool(**{arg_name: arg_value}) == {"status": "ok"}
+        # T1: 载荷必须完整转发给 client，防止静默丢弃
+        getattr(mock_client, tool_name).assert_called_once_with(arg_value)
 
     @patch("streamxpress_mcp.server.get_client")
     def test_set_playout_state_sfn_tool(self, mock_get_client):
@@ -957,6 +962,48 @@ class TestEnhancedParams:
         with pytest.raises(ValueError, match="invalid protocol"):
             client.set_tsoip_params(dest_ip="239.1.1.1", dest_port=1234, protocol="UPD")
 
+    def test_set_tsoip_params_fec_and_rtp_and_txmode(self, client, mock_sprc):
+        """T2: RTP 分支、FEC 推导、TxMode 传递。"""
+        from streamxpress_mcp.sprc_import import DTAPI
+
+        client.connect("http://localhost", 5000)
+        client.set_tsoip_params(
+            dest_ip="239.1.1.1", dest_port=1234, protocol="RTP",
+            fec_rows=5, fec_cols=4, tx_mode=DTAPI.TXMODE_204)
+        call_args = mock_sprc.set_tsiop_pars.call_args[0][0]
+        assert call_args.Protocol == DTAPI.PROTO_RTP
+        assert call_args.FecMode == DTAPI.FEC_2D
+        assert call_args.FecNumRows == 5
+        assert call_args.FecNumCols == 4
+        assert call_args.TxMode == DTAPI.TXMODE_204
+
+    @patch("streamxpress_mcp.server.get_client")
+    def test_set_tsoip_params_tool_passes_optional_fields(self, mock_get_client):
+        """T3: 工具层不得静默丢弃 protocol/dest_ip2/diff_serv/tx_mode/fec。"""
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
+        from streamxpress_mcp.server import set_tsoip_params
+        set_tsoip_params(
+            dest_ip="239.1.1.1", dest_port=1234, protocol="UDP",
+            failover=True, dest_ip2="239.1.1.2", dest_port2=1235, diff_serv=46,
+            tx_mode=DTAPI.TXMODE_204, fec_rows=5, fec_cols=4)
+        mock_client.set_tsoip_params.assert_called_once_with(
+            dest_ip="239.1.1.1", dest_port=1234, num_tp_per_ip=7, protocol="UDP",
+            ttl=64, fec_rows=5, fec_cols=4, tx_mode=DTAPI.TXMODE_204,
+            failover=True, dest_ip2="239.1.1.2", dest_port2=1235, diff_serv=46)
+
+    @patch("streamxpress_mcp.server.get_client")
+    def test_set_asi_params_tool_passes_optional_fields(self, mock_get_client):
+        """T3: 工具层不得静默丢弃 burst_mode/polarity。"""
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
+        from streamxpress_mcp.server import set_asi_params
+        set_asi_params(remux=True, playout_rate=20_000_000, tx_mode=DTAPI.TXMODE_204,
+                       burst_mode=True, polarity=DTAPI.TXPOL_INVERTED)
+        mock_client.set_asi_params.assert_called_once_with(
+            remux=True, playout_rate=20_000_000, tx_mode=DTAPI.TXMODE_204,
+            burst_mode=True, polarity=DTAPI.TXPOL_INVERTED)
+
     def test_set_channel_modelling_pars_paths_none(self, client, mock_sprc):
         """JSON null 表达"无路径"时应回退为空列表而非崩溃。"""
         client.connect("http://localhost", 5000)
@@ -987,8 +1034,36 @@ class TestErrorBoundary:
 
         mock_sprc.scan_ports.side_effect = SpRcException(SPRC_RESULT.E_NO_LICK)
         client.connect("http://localhost", 5000)
-        with pytest.raises(RuntimeError, match="E_NO_LICK"):
+        with pytest.raises(RuntimeError, match="E_NO_LICK") as exc_info:
             client.scan_ports()
+        # F2: str(e) 为空时兜底 "no detail"，尾部不留空白
+        assert str(exc_info.value).endswith("no detail")
+
+    def test_long_call_does_not_block_other_calls(self, client, mock_sprc):
+        """长阻塞调用不得串行化其他工具调用（锁不能覆盖在途 SOAP 调用）。"""
+        import threading
+        import time
+
+        started = threading.Event()
+
+        def slow(cond, timeout):
+            started.set()
+            time.sleep(0.6)
+
+        mock_sprc.wait_for_condition.side_effect = slow
+        client.connect("http://localhost", 5000)
+
+        t = threading.Thread(target=lambda: client.wait_for_condition(1, -1), daemon=True)
+        t.start()
+        assert started.wait(timeout=1.0)
+
+        done = threading.Event()
+        threading.Thread(
+            target=lambda: (client.scan_ports(), done.set()), daemon=True
+        ).start()
+        # 在慢调用仍在进行时就应完成
+        assert done.wait(timeout=0.3), "scan_ports 被 wait_for_condition 阻塞了"
+        t.join()
 
     def test_transport_error_marks_session_stale(self, client, mock_sprc):
         from streamxpress_mcp.sprc_import import SpRcException, SPRC_RESULT
