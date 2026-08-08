@@ -267,6 +267,8 @@ EXPECTED_TOOL_NAMES = {
     "get_isdb_t_pars", "get_tdt_adapt_pars", "get_tsg_pars", "get_sfn_status",
     "open_channel_modelling_file", "save_channel_modelling_settings",
     "save_settings", "normalise",
+    "set_loop_flags", "set_iq_gain", "set_remux", "set_signal_source",
+    "set_use_nit", "set_sfn_mode", "set_sub_loop_pars", "select_dta_plus",
 }
 
 
@@ -604,3 +606,61 @@ class TestServerFileSettingsTools:
         from streamxpress_mcp.server import normalise
         assert normalise() == {"status": "ok"}
         mock_client.normalise.assert_called_once()
+
+
+class TestClientScalarSetters:
+    def _connect(self, client):
+        client.connect("http://localhost", 5000)
+
+    def test_set_loop_flags(self, client, mock_sprc):
+        from streamxpress_mcp.sprc_import import SPRC
+
+        self._connect(client)
+        client.set_loop_flags(SPRC.LOOP_CC | SPRC.LOOP_PCR | SPRC.LOOP_WRAP)
+        mock_sprc.set_loop_flags.assert_called_once_with(SPRC.LOOP_CC | SPRC.LOOP_PCR | SPRC.LOOP_WRAP)
+
+    def test_set_remux(self, client, mock_sprc):
+        self._connect(client)
+        client.set_remux(True)
+        mock_sprc.set_remux.assert_called_once_with(True)
+
+    def test_set_sfn_mode(self, client, mock_sprc):
+        from streamxpress_mcp.sprc_import import SPRC
+
+        self._connect(client)
+        client.set_sfn_mode(SPRC.SFN_MODE_1_PPS)
+        mock_sprc.set_sfn_mode.assert_called_once_with(SPRC.SFN_MODE_1_PPS)
+
+    def test_set_sub_loop_pars(self, client, mock_sprc):
+        self._connect(client)
+        client.set_sub_loop_pars(use_subloop=True, loop_begin_rel=0.25, loop_end_rel=0.75)
+        call_args = mock_sprc.set_sub_loop_pars.call_args[0][0]
+        assert call_args.UseSubLoop is True
+        assert call_args.LoopBeginRel == 0.25
+        assert call_args.LoopEndRel == 0.75
+
+    def test_select_dta_plus(self, client, mock_sprc):
+        self._connect(client)
+        client.select_dta_plus(True, 217400002)
+        mock_sprc.select_dta_plus.assert_called_once_with(True, 217400002)
+
+
+class TestServerScalarSetterTools:
+    @pytest.mark.parametrize("tool_name,kwargs", [
+        ("set_loop_flags", {"flags": 3}),
+        ("set_iq_gain", {"gain": 150}),
+        ("set_remux", {"enabled": True}),
+        ("set_signal_source", {"source": 0}),
+        ("set_use_nit", {"use_nit": True}),
+        ("set_sfn_mode", {"sfn_mode": 0}),
+        ("set_sub_loop_pars", {"use_subloop": True, "loop_begin_rel": 0.25, "loop_end_rel": 0.75}),
+        ("select_dta_plus", {"use_dta_plus": True, "serial": 217400002}),
+    ])
+    @patch("streamxpress_mcp.server.get_client")
+    def test_setter_tool_returns_ok(self, mock_get_client, tool_name, kwargs):
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
+        from streamxpress_mcp import server as server_mod
+        tool = getattr(server_mod, tool_name)
+        result = tool(**kwargs)
+        assert result["status"] == "ok"

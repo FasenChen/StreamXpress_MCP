@@ -3,7 +3,7 @@
 from dataclasses import asdict
 
 from .sprc_import import SPRC_client, SpRcPortDesc, SpRcException, SPRC_RESULT
-from .sprc_import import SpRcAsiPars, SpRcTsoipPars, SpRcRfPars, SpRcModPars
+from .sprc_import import SpRcAsiPars, SpRcTsoipPars, SpRcRfPars, SpRcModPars, SpRcSubLoopPars
 from .sprc_import import SPRC, DTAPI
 
 
@@ -266,3 +266,43 @@ class StreamXpressClient:
             Polarity=DTAPI.TXPOL_NORMAL,
         )
         sprc.set_asi_pars(pars)
+
+    def set_loop_flags(self, flags: int) -> None:
+        sprc = self._ensure_connected()
+        sprc.set_loop_flags(flags)
+
+    def set_iq_gain(self, gain: int) -> None:
+        sprc = self._ensure_connected()
+        sprc.set_iq_gain(gain)
+
+    def set_remux(self, enabled: bool) -> None:
+        sprc = self._ensure_connected()
+        sprc.set_remux(enabled)
+
+    def set_signal_source(self, source: int) -> None:
+        sprc = self._ensure_connected()
+        sprc.set_signal_source(source)
+
+    def set_use_nit(self, use_nit: bool) -> None:
+        sprc = self._ensure_connected()
+        sprc.set_use_nit(use_nit)
+
+    def set_sfn_mode(self, sfn_mode: int) -> None:
+        sprc = self._ensure_connected()
+        sprc.set_sfn_mode(sfn_mode)
+
+    def set_sub_loop_pars(
+        self, use_subloop: bool, loop_begin_rel: float = 0.0, loop_end_rel: float = 1.0
+    ) -> None:
+        sprc = self._ensure_connected()
+        sprc.set_sub_loop_pars(
+            SpRcSubLoopPars(
+                UseSubLoop=use_subloop,
+                LoopBeginRel=loop_begin_rel,
+                LoopEndRel=loop_end_rel,
+            )
+        )
+
+    def select_dta_plus(self, use_dta_plus: bool, serial: int) -> None:
+        sprc = self._ensure_connected()
+        sprc.select_dta_plus(use_dta_plus, serial)

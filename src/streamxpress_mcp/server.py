@@ -413,6 +413,85 @@ def set_asi_params(
     return {"status": "ok"}
 
 
+@mcp.tool()
+def set_loop_flags(flags: int) -> dict:
+    """Set loop-adaptation flags (OR of SPRC.LOOP_CC=1, LOOP_PCR=2, LOOP_TDT=4, LOOP_WRAP=8).
+
+    Args:
+        flags: Bitmask, e.g. 3 = adapt CC + PCR.
+    """
+    client = get_client()
+    client.set_loop_flags(flags)
+    return {"status": "ok", "flags": flags}
+
+
+@mcp.tool()
+def set_iq_gain(gain: int) -> dict:
+    """Set the IQ gain in units of 0.1 dB."""
+    client = get_client()
+    client.set_iq_gain(gain)
+    return {"status": "ok", "gain": gain}
+
+
+@mcp.tool()
+def set_remux(enabled: bool) -> dict:
+    """Enable/disable real-time remultiplexing (add null packets to match output rate)."""
+    client = get_client()
+    client.set_remux(enabled)
+    return {"status": "ok", "enabled": enabled}
+
+
+@mcp.tool()
+def set_signal_source(source: int) -> dict:
+    """Set the signal source: 0=file (SPRC.FROM_FILE), 1=test generator (SPRC.TEST_GENERATOR)."""
+    client = get_client()
+    client.set_signal_source(source)
+    return {"status": "ok", "source": source}
+
+
+@mcp.tool()
+def set_use_nit(use_nit: bool) -> dict:
+    """Enable/disable NIT table generation."""
+    client = get_client()
+    client.set_use_nit(use_nit)
+    return {"status": "ok", "use_nit": use_nit}
+
+
+@mcp.tool()
+def set_sfn_mode(sfn_mode: int) -> dict:
+    """Set SFN mode: 0=disabled (SPRC.SFN_MODE_DISABLE), 1=1PPS (SPRC.SFN_MODE_1_PPS)."""
+    client = get_client()
+    client.set_sfn_mode(sfn_mode)
+    return {"status": "ok", "sfn_mode": sfn_mode}
+
+
+@mcp.tool()
+def set_sub_loop_pars(use_subloop: bool, loop_begin_rel: float = 0.0, loop_end_rel: float = 1.0) -> dict:
+    """Set file sub-loop playout positions (relative 0..1).
+
+    Args:
+        use_subloop: Enable the sub-loop.
+        loop_begin_rel: Relative start position in the file (0..1).
+        loop_end_rel: Relative end position in the file (0..1).
+    """
+    client = get_client()
+    client.set_sub_loop_pars(use_subloop, loop_begin_rel, loop_end_rel)
+    return {"status": "ok", "use_subloop": use_subloop}
+
+
+@mcp.tool()
+def select_dta_plus(use_dta_plus: bool, serial: int) -> dict:
+    """Select a DtaPlus device to use as an attenuator.
+
+    Args:
+        use_dta_plus: True to start using the DtaPlus device.
+        serial: Serial number of the DtaPlus device (from scan_ports).
+    """
+    client = get_client()
+    client.select_dta_plus(use_dta_plus, serial)
+    return {"status": "ok", "serial": serial}
+
+
 # ── Launch tool ──
 
 @mcp.tool()
