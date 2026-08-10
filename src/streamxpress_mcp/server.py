@@ -120,6 +120,17 @@ OUTPUT_TYPE_LABELS = {
     0x40000: "ISDB-S3", 0x80000: "DRM", 0x100000: "ATSC3-STLTP",
 }
 
+CAPABILITY_LABELS = {
+    1: "ADJLVL",    # 输出电平可调
+    2: "CM",        # 支持信道建模
+    4: "DIGIQ",     # 数字 IQ 输出
+    8: "IF",        # IF 输出
+    16: "LBAND",    # 可上变频至 L 波段 950–2150 MHz
+    32: "UHF",      # 400–862 MHz
+    64: "VHF",      # 47–470 MHz
+    128: "SFN",     # 支持单频网
+}
+
 
 def _describe_output_type(flags: int) -> list[str]:
     """Convert OutputType bitmask to human-readable labels."""
@@ -130,11 +141,17 @@ def _describe_output_type(flags: int) -> list[str]:
     return labels
 
 
+def _describe_capabilities(flags: int) -> list[str]:
+    """Convert Capabilities bitmask to human-readable labels."""
+    return [name for mask, name in CAPABILITY_LABELS.items() if flags & mask]
+
+
 @mcp.tool()
 def scan_ports() -> list[dict]:
     """Scan for available output ports on the connected StreamXpress.
 
-    Returns a list of port descriptors with serial, type, and output capabilities.
+    Returns a list of port descriptors with serial, type, output types and
+    capabilities (adjustable level, channel modelling, SFN, upconverter band...).
     """
     client = get_client()
     ports = client.scan_ports()
@@ -144,6 +161,10 @@ def scan_ports() -> list[dict]:
             "type_number": p.TypeNumber,
             "port": p.Port,
             "output_types": _describe_output_type(p.OutputType),
+            "capabilities": _describe_capabilities(p.Capabilities),
+            "capabilities_raw": p.Capabilities,
+            "ip": list(p.Ip) if p.Ip else None,
+            "mac": list(p.Mac) if p.Mac else None,
             "in_use": p.InUse != 0,
         }
         for p in ports
@@ -157,7 +178,12 @@ def select_port(serial: int, port_num: int, modulation: int = 0) -> dict:
     Args:
         serial: Device serial number (from scan_ports)
         port_num: Physical port number on the device
-        modulation: Initial modulation standard (0=none, use SPRC.MOD_* constants)
+        modulation: Initial modulation standard for modulator ports — use
+                    SPRC.MOD_* constants (NOT DTAPI.MOD_*; the two namespaces
+                    have different values). Set to 0 for non-modulator ports.
+                    Common values: MOD_DVBT=7, MOD_DVBT2=8, MOD_DVBS=5,
+                    MOD_DVBS2=6, MOD_J83A=13 (DVB-C QAM), MOD_ATSC=1,
+                    MOD_ISDBT=12, MOD_CMMB=2.
     """
     client = get_client()
     client.select_port(serial, port_num, modulation)
@@ -231,6 +257,20 @@ def stop() -> dict:
 
 
 @mcp.tool()
+def pause() -> dict:
+    """Pause TS playout, preserving the current file position.
+
+    Unlike stop, pause keeps the playout position, so a following start resumes
+    from where it left off. Note the playout server does NOT report a paused
+    player as stopped, so wait_for_condition(SPRC.COND_STOPPED) will not be
+    satisfied while paused.
+    """
+    client = get_client()
+    client.pause()
+    return {"status": "paused"}
+
+
+@mcp.tool()
 def get_status() -> dict:
     """Get current playout status including position, wraps, filename, and bitrate.
 
@@ -239,6 +279,16 @@ def get_status() -> dict:
     """
     client = get_client()
     return client.get_status()
+
+
+@mcp.tool()
+def get_playout_info() -> dict:
+    """Get the full static playout info struct (all SpRcPlayoutInfo fields).
+
+    get_status returns a curated summary merged with dynamic status; this tool
+    returns every field verbatim, so newly added vendor fields never go missing.
+    """
+    return get_client().get_playout_info()
 
 
 # ── Parameter tools ──
@@ -412,15 +462,35 @@ def set_tsoip_params(
 
 
 @mcp.tool()
-def set_rf_params(frequency_hz: int, level_dbm: float) -> dict:
+def set_rf_params(
+    frequency_hz: int,
+    level_dbm: float,
+    spec_inv: bool | None = None,
+    cw: bool | None = None,
+    rf_enabled_on_stop: bool | None = None,
+) -> dict:
     """Set RF output frequency and level (modulator ports only).
 
     Args:
-        frequency_hz: Center frequency in Hz, e.g. 500_000_000 for 500 MHz
-        level_dbm: Output level in dBm, e.g. -37.5
+        frequency_hz: Center frequency in Hz, e.g. 500_000_000 for 500 MHz.
+        level_dbm: Output level in dBm, e.g. -37.5.
+        spec_inv: Spectrum inversion. None (default) keeps the current setting.
+        cw: CW (continuous-wave) mode. None keeps the current setting.
+        rf_enabled_on_stop: Keep RF output up while playout is stopped.
+                            None keeps the current setting.
+
+    The three flags default to None rather than False because SetRfPars writes
+    the whole struct — passing False would silently clear an operator's setting
+    on every frequency change.
     """
     client = get_client()
-    client.set_rf_params(frequency_hz, level_dbm)
+    client.set_rf_params(
+        frequency_hz=frequency_hz,
+        level_dbm=level_dbm,
+        spec_inv=spec_inv,
+        cw=cw,
+        rf_enabled_on_stop=rf_enabled_on_stop,
+    )
     return {"status": "ok", "frequency_hz": frequency_hz, "level_dbm": level_dbm}
 
 
@@ -593,9 +663,17 @@ def set_tsg_pars(
     """Set test signal generator parameters.
 
     Args:
-        type: SPRC.TSG_TYPE_* (PRBS7/15/23/31, RP198, RP219-1, DYNAMIC...).
+        type: SPRC.TSG_TYPE_* — PRBS7=0 / PRBS15=1 / PRBS23=2 / PRBS31=3 /
+              SDI_STATIC_NO_AUDIO=5 (SMPTE RP-198, no audio) /
+              SDI_DYNAMIC_NO_AUDIO=6 / SDI_STATIC=7 (SMPTE RP-198) /
+              SDI_DYNAMIC=8 (DekTec bouncing blocks).
+              TS_CNT=4 is DekTec-internal. RP-219-1 requires SpRcApi v1.12
+              (the vendored layer is v1.11), so it is not available.
         pid: PID carrying the generated stream (ignored in SDI mode).
-        vid_std: SPRC.VIDSTD_* video standard (only for SDI generators).
+        vid_std: SPRC.VIDSTD_* (only for SDI generators). Common values:
+                 525I59_94=0x01, 625I50=0x02, 720P50=0x08, 1080I50=0x0B,
+                 1080P50=0x13, 2160P50=0x24. 40 standards are defined — see
+                 sprc_import/SPRC_constants.py. Note 0 is NOT a valid standard.
         flags: Reserved, set to 0.
     """
     client = get_client()
@@ -639,7 +717,16 @@ def set_channel_modelling_pars(cm_pars: dict) -> dict:
 
     Args:
         cm_pars: dict with keys CmEnable (bool), AwgnEnable (bool), Snr (float dB),
-                 PathsEnable (bool), Paths (list of {Type, Attenuation, Delay, Phase, Doppler}).
+                 PathsEnable (bool), Paths (list of up to 32
+                 {Type, Attenuation, Delay, Phase, Doppler}).
+                 Path Type: SPRC.CONSTANT_DELAY=0 (constant delay/phase),
+                 CONSTANT_DOPPLER=1, RAYLEIGH_JAKES=2 (mobile-path model),
+                 RAYLEIGH_GAUSSIAN=3 (ionospheric model).
+                 Constraints: total attenuation across all paths must not exceed
+                 0 dB or the channel simulator overflows (call normalise to
+                 enforce); max delay is 896 us for an 8 MHz channel. Phase is
+                 ignored for both Rayleigh types; Doppler is ignored for
+                 CONSTANT_DELAY.
     """
     client = get_client()
     client.set_channel_modelling_pars(cm_pars)

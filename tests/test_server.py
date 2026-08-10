@@ -50,6 +50,35 @@ class TestStreamXpressPortOps:
         assert len(ports) == 1
         assert ports[0].Serial == 217400001
 
+    def test_scan_ports_tool_exposes_capabilities(self, client, mock_sprc):
+        """3a: Capabilities 位掩码被展开为标签（多 bit 覆盖）。"""
+        from streamxpress_mcp.sprc_import import SpRcPortDesc
+        from streamxpress_mcp import server as server_mod
+
+        mock_port = SpRcPortDesc(
+            Serial=217400001, TypeNumber=2174,
+            Ip=bytes([0, 0, 0, 0]), Mac=bytes(6),
+            FirmwareVersion=100, FirmwareVariant=0,
+            Port=1, OutputType=0x20000,  # TS-over-IP
+            Capabilities=1 | 2 | 128,   # ADJLVL | CM | SFN
+            InUse=0,
+        )
+        mock_sprc.scan_ports.return_value = [mock_port]
+        client.connect("http://localhost", 5000)
+
+        with patch("streamxpress_mcp.server.get_client", return_value=client):
+            result = server_mod.scan_ports()
+
+        assert result[0]["capabilities"] == ["ADJLVL", "CM", "SFN"]
+        assert result[0]["capabilities_raw"] == 1 | 2 | 128
+
+    def test_describe_capabilities_multibit(self):
+        from streamxpress_mcp.server import _describe_capabilities
+
+        assert _describe_capabilities(1 | 2 | 128) == ["ADJLVL", "CM", "SFN"]
+        assert _describe_capabilities(0) == []
+        assert _describe_capabilities(1 << 20) == []      # 未知位
+
     def test_select_port(self, client, mock_sprc):
         client.connect("http://localhost", 5000)
         client.select_port(217400001, 1, 1)
@@ -75,6 +104,13 @@ class TestStreamXpressPlayout:
         client.stop()
         mock_sprc.set_playout_state.assert_called_with(SPRC.STATE_STOP)
 
+    def test_pause(self, client, mock_sprc):
+        from streamxpress_mcp.sprc_import import SPRC
+
+        client.connect("http://localhost", 5000)
+        client.pause()
+        mock_sprc.set_playout_state.assert_called_once_with(SPRC.STATE_PAUSE)
+
     def test_get_status(self, client, mock_sprc):
         from streamxpress_mcp.sprc_import import SpRcPlayoutStatus, SpRcPlayoutInfo
 
@@ -98,6 +134,68 @@ class TestStreamXpressPlayout:
         assert status["position_percent"] == 50.0
         assert status["file_name"] == "test.ts"
         assert status["ts_rate_bps"] == 25_000_000
+
+    def test_get_status_all_fields(self, client, mock_sprc):
+        """3b: get_status 补齐 8 个新字段，并钉住此前无断言的 5 个字段。"""
+        from streamxpress_mcp.sprc_import import SpRcPlayoutStatus, SpRcPlayoutInfo
+
+        mock_sprc.get_playout_status.return_value = SpRcPlayoutStatus(
+            PosRel=0.5, NumWraps=3, FifoLoad=42, NumErrors=1, TotalMemLoad=1024)
+        mock_sprc.get_playout_info.return_value = SpRcPlayoutInfo(
+            PlayoutState=1, Filename="test.ts", TsRate=25_000_000, PlayoutRate=25_000_000,
+            BurstMode=True, ExtClock=True, FileCanBeRead=True,
+            FileOffsetEnd=0, FileOffsetStart=0, FilePlayedBytes=0,
+            FileRateEst=25_100_000, FileSize=1024, FileType=1,
+            LoopBeginRel=0.25, LoopEndRel=0.75, LoopFlags=3,
+            Remux=True, SymRate=27_500_000,
+            TimeLoopBegin=0, TimeLoopEnd=0, TimeOffset=10,
+            TpSize=188, TxPolarity=1)
+
+        client.connect("http://localhost", 5000)
+        status = client.get_status()
+        assert status["position_percent"] == 50.0
+        assert status["num_wraps"] == 3
+        assert status["total_mem_load"] == 1024
+        assert status["time_offset"] == 10
+        assert status["remux"] is True
+        assert status["playout_state"] == 1
+        assert status["file_can_be_read"] is True
+        assert status["file_rate_est"] == 25_100_000
+        assert status["file_type"] == 1
+        assert status["loop_begin_rel"] == 0.25
+        assert status["loop_end_rel"] == 0.75
+        assert status["tx_polarity"] == 1
+        assert status["burst_mode"] is True
+        assert status["ext_clock"] is True
+
+    def test_get_playout_info_full_pass_through(self, client, mock_sprc):
+        """3b: get_playout_info 全量透传（CamelCase 键，杜绝字段漂移）。"""
+        from streamxpress_mcp.sprc_import import SpRcPlayoutInfo
+
+        mock_sprc.get_playout_info.return_value = SpRcPlayoutInfo(
+            PlayoutState=1, Filename="test.ts", TsRate=25_000_000, PlayoutRate=25_000_000,
+            BurstMode=False, ExtClock=False, FileCanBeRead=True,
+            FileOffsetEnd=0, FileOffsetStart=0, FilePlayedBytes=0,
+            FileRateEst=0, FileSize=1024, FileType=0,
+            LoopBeginRel=0.0, LoopEndRel=0.0, LoopFlags=3,
+            Remux=False, SymRate=0,
+            TimeLoopBegin=0, TimeLoopEnd=0, TimeOffset=0,
+            TpSize=188, TxPolarity=0)
+
+        client.connect("http://localhost", 5000)
+        info = client.get_playout_info()
+        assert info["FileCanBeRead"] is True
+        assert info["FileSize"] == 1024
+        assert info["LoopFlags"] == 3
+        assert info["TpSize"] == 188
+
+    @patch("streamxpress_mcp.server.get_client")
+    def test_get_playout_info_tool(self, mock_get_client):
+        mock_client = MagicMock()
+        mock_client.get_playout_info.return_value = {"FileCanBeRead": True}
+        mock_get_client.return_value = mock_client
+        from streamxpress_mcp.server import get_playout_info
+        assert get_playout_info() == {"FileCanBeRead": True}
 
 
 class TestStreamXpressParams:
@@ -124,6 +222,27 @@ class TestStreamXpressParams:
         call_args = mock_sprc.set_rf_pars.call_args[0][0]
         assert call_args.Frequency == 500_000_000
         assert call_args.Level == -37.5
+
+    def test_set_rf_params_preserves_flags(self, client, mock_sprc):
+        """1: 未显式指定的标志必须保持服务器现值，不得被清零。"""
+        from streamxpress_mcp.sprc_import import SpRcRfPars
+
+        mock_sprc.get_rf_pars.return_value = SpRcRfPars(
+            Frequency=100, Level=-10.0, SpecInv=True, CW=True, RfEnabledOnStop=True)
+        client.connect("http://localhost", 5000)
+        client.set_rf_params(500_000_000, -30.0)
+        pars = mock_sprc.set_rf_pars.call_args[0][0]
+        assert pars.Frequency == 500_000_000 and pars.Level == -30.0
+        assert pars.SpecInv is True and pars.CW is True and pars.RfEnabledOnStop is True
+
+    def test_set_rf_params_explicit_flags_override(self, client, mock_sprc):
+        """1: 显式传入的标志必须生效，且不额外读取。"""
+        client.connect("http://localhost", 5000)
+        client.set_rf_params(500_000_000, -30.0,
+                             spec_inv=True, cw=False, rf_enabled_on_stop=True)
+        pars = mock_sprc.set_rf_pars.call_args[0][0]
+        assert pars.SpecInv is True and pars.CW is False and pars.RfEnabledOnStop is True
+        mock_sprc.get_rf_pars.assert_not_called()   # 全部显式 => 不做 RMW 读
 
     def test_set_asi_params(self, client, mock_sprc):
         from streamxpress_mcp.sprc_import import DTAPI
@@ -258,10 +377,11 @@ class TestServerParamTools:
 
 EXPECTED_TOOL_NAMES = {
     "connect", "disconnect", "scan_ports", "select_port", "open_file",
-    "start", "stop", "get_status", "set_rate", "set_tsoip_params",
+    "start", "stop", "pause", "get_status", "set_rate", "set_tsoip_params",
     "set_rf_params", "set_asi_params", "launch",
     "get_remote_version", "get_remote_dtapi_version", "get_app_info",
     "show_window", "clear_errors",
+    "get_playout_info",
     "get_asi_pars", "get_cmmb_pars", "get_mod_pars", "get_rf_pars",
     "get_tsoip_pars", "get_spi_pars", "get_hw_noise_pars", "get_iq_gain",
     "get_signal_source", "get_use_nit",

@@ -84,7 +84,7 @@ python -m streamxpress_mcp
 >
 > 新增的 `launch` 工具同样无前缀，客户端中显示为 `streamxpress_launch`。
 >
-> 当前共注册 **59** 个工具（13 个基础 + 46 个 SpRcApi 接口透传）。
+> 当前共注册 **61** 个工具（15 个基础 + 46 个 SpRcApi 接口透传）。
 
 | 工具 | 说明 |
 |---|---|
@@ -96,7 +96,9 @@ python -m streamxpress_mcp
 | `open_file` | 加载 TS 文件 |
 | `start` | 开始播放 |
 | `stop` | 停止播放 |
-| `get_status` | 查询播放进度和状态 |
+| `pause` | 暂停播放（保留文件位置，后续 start 从原处继续） |
+| `get_status` | 查询播放进度和状态（摘要） |
+| `get_playout_info` | 获取完整静态播放信息（全字段透传） |
 | `set_rate` | 设置 TS 码率（bps） |
 | `set_tsoip_params` | 配置 UDP/RTP TS-over-IP 输出参数 |
 | `set_rf_params` | 设置 RF 频率和电平 |

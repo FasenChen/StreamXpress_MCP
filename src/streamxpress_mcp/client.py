@@ -185,6 +185,9 @@ class StreamXpressClient:
     def stop(self) -> None:
         self._sprc_call(lambda s: s.set_playout_state(SPRC.STATE_STOP))
 
+    def pause(self) -> None:
+        self._sprc_call(lambda s: s.set_playout_state(SPRC.STATE_PAUSE))
+
     # ── Session & version ──
 
     def get_remote_version(self) -> dict:
@@ -228,9 +231,21 @@ class StreamXpressClient:
             "loop_flags": info.LoopFlags,
             "remux": info.Remux,
             "tp_size": info.TpSize,
+            "file_can_be_read": info.FileCanBeRead,
+            "file_rate_est": info.FileRateEst,
+            "file_type": info.FileType,
+            "loop_begin_rel": info.LoopBeginRel,
+            "loop_end_rel": info.LoopEndRel,
+            "tx_polarity": info.TxPolarity,
+            "burst_mode": info.BurstMode,
+            "ext_clock": info.ExtClock,
             }
 
         return self._sprc_call(_call)
+
+    def get_playout_info(self) -> dict:
+        """Full static playout info struct, verbatim (all SpRcPlayoutInfo fields)."""
+        return self._sprc_call(lambda s: _to_dict(s.get_playout_info()))
 
     # ── Parameter getters ──
 
@@ -330,9 +345,35 @@ class StreamXpressClient:
         )
         self._sprc_call(lambda s: s.set_tsiop_pars(pars))
 
-    def set_rf_params(self, frequency_hz: int, level_dbm: float) -> None:
-        pars = SpRcRfPars(Frequency=frequency_hz, Level=level_dbm)
-        self._sprc_call(lambda s: s.set_rf_pars(pars))
+    def set_rf_params(
+        self,
+        frequency_hz: int,
+        level_dbm: float,
+        spec_inv: bool | None = None,
+        cw: bool | None = None,
+        rf_enabled_on_stop: bool | None = None,
+    ) -> None:
+        """Set RF frequency/level, preserving the three flag fields by default.
+
+        SetRfPars is a whole-struct write, so a naive call would reset SpecInv /
+        CW / RfEnabledOnStop to False. Passing None for a flag means "keep the
+        server's current value", which costs one extra GetRfPars round-trip only
+        when at least one flag is left unspecified.
+        """
+        def _call(s):
+            if spec_inv is None or cw is None or rf_enabled_on_stop is None:
+                current = s.get_rf_pars()
+                si = current.SpecInv if spec_inv is None else spec_inv
+                c = current.CW if cw is None else cw
+                re = current.RfEnabledOnStop if rf_enabled_on_stop is None else rf_enabled_on_stop
+            else:
+                si, c, re = spec_inv, cw, rf_enabled_on_stop
+            s.set_rf_pars(SpRcRfPars(
+                Frequency=frequency_hz, Level=level_dbm,
+                SpecInv=si, CW=c, RfEnabledOnStop=re,
+            ))
+
+        self._sprc_call(_call)
 
     def set_asi_params(
         self,
