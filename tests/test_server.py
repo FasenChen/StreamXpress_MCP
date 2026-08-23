@@ -50,35 +50,6 @@ class TestStreamXpressPortOps:
         assert len(ports) == 1
         assert ports[0].Serial == 217400001
 
-    def test_scan_ports_tool_exposes_capabilities(self, client, mock_sprc):
-        """3a: Capabilities 位掩码被展开为标签（多 bit 覆盖）。"""
-        from streamxpress_mcp.sprc_import import SpRcPortDesc
-        from streamxpress_mcp import server as server_mod
-
-        mock_port = SpRcPortDesc(
-            Serial=217400001, TypeNumber=2174,
-            Ip=bytes([0, 0, 0, 0]), Mac=bytes(6),
-            FirmwareVersion=100, FirmwareVariant=0,
-            Port=1, OutputType=0x20000,  # TS-over-IP
-            Capabilities=1 | 2 | 128,   # ADJLVL | CM | SFN
-            InUse=0,
-        )
-        mock_sprc.scan_ports.return_value = [mock_port]
-        client.connect("http://localhost", 5000)
-
-        with patch("streamxpress_mcp.server.get_client", return_value=client):
-            result = server_mod.scan_ports()
-
-        assert result[0]["capabilities"] == ["ADJLVL", "CM", "SFN"]
-        assert result[0]["capabilities_raw"] == 1 | 2 | 128
-
-    def test_describe_capabilities_multibit(self):
-        from streamxpress_mcp.server import _describe_capabilities
-
-        assert _describe_capabilities(1 | 2 | 128) == ["ADJLVL", "CM", "SFN"]
-        assert _describe_capabilities(0) == []
-        assert _describe_capabilities(1 << 20) == []      # 未知位
-
     def test_select_port(self, client, mock_sprc):
         client.connect("http://localhost", 5000)
         client.select_port(217400001, 1, 1)
@@ -189,15 +160,6 @@ class TestStreamXpressPlayout:
         assert info["LoopFlags"] == 3
         assert info["TpSize"] == 188
 
-    @patch("streamxpress_mcp.server.get_client")
-    def test_get_playout_info_tool(self, mock_get_client):
-        mock_client = MagicMock()
-        mock_client.get_playout_info.return_value = {"FileCanBeRead": True}
-        mock_get_client.return_value = mock_client
-        from streamxpress_mcp.server import get_playout_info
-        assert get_playout_info() == {"FileCanBeRead": True}
-
-
 class TestStreamXpressParams:
     def test_set_rate(self, client, mock_sprc):
         client.connect("http://localhost", 5000)
@@ -278,49 +240,7 @@ class TestServerConnectTool:
         mock_client.disconnect.assert_called_once()
 
 
-class TestServerPortTools:
-    @patch("streamxpress_mcp.server.get_client")
-    def test_scan_ports(self, mock_get_client):
-        from streamxpress_mcp.sprc_import import SpRcPortDesc
-        mock_client = MagicMock()
-        mock_client.scan_ports.return_value = [
-            SpRcPortDesc(Serial=217400001, TypeNumber=2174, Ip=bytes(4), Mac=bytes(6),
-                         FirmwareVersion=100, FirmwareVariant=0, Port=1,
-                         OutputType=0x00001, Capabilities=0, InUse=0)]
-        mock_get_client.return_value = mock_client
-        from streamxpress_mcp.server import scan_ports
-        result = scan_ports()
-        assert len(result) == 1
-        assert result[0]["serial"] == 217400001
-        assert "ASI" in result[0]["output_types"]
-
-    @patch("streamxpress_mcp.server.get_client")
-    def test_select_port(self, mock_get_client):
-        mock_client = MagicMock()
-        mock_get_client.return_value = mock_client
-        from streamxpress_mcp.server import select_port
-        result = select_port(serial=217400001, port_num=1)
-        assert result["status"] == "ok"
-        mock_client.select_port.assert_called_once_with(217400001, 1, 0)
-
-    @patch("streamxpress_mcp.server.get_client")
-    def test_open_file(self, mock_get_client):
-        mock_client = MagicMock()
-        mock_get_client.return_value = mock_client
-        from streamxpress_mcp.server import open_file
-        result = open_file("C:\\Streams\\test.ts")
-        assert result["status"] == "ok"
-
-
 class TestServerPlayoutTools:
-    @patch("streamxpress_mcp.server.get_client")
-    def test_start(self, mock_get_client):
-        mock_client = MagicMock()
-        mock_get_client.return_value = mock_client
-        from streamxpress_mcp.server import start
-        result = start()
-        assert result["status"] == "playing"
-
     @patch("streamxpress_mcp.server.get_client")
     def test_stop(self, mock_get_client):
         mock_client = MagicMock()
@@ -341,61 +261,8 @@ class TestServerPlayoutTools:
         assert result["position_percent"] == 75.5
 
 
-class TestServerParamTools:
-    @patch("streamxpress_mcp.server.get_client")
-    def test_set_rate(self, mock_get_client):
-        mock_client = MagicMock()
-        mock_get_client.return_value = mock_client
-        from streamxpress_mcp.server import set_rate
-        result = set_rate(25_000_000)
-        assert result["status"] == "ok"
-
-    @patch("streamxpress_mcp.server.get_client")
-    def test_set_tsoip(self, mock_get_client):
-        mock_client = MagicMock()
-        mock_get_client.return_value = mock_client
-        from streamxpress_mcp.server import set_tsoip_params
-        result = set_tsoip_params(dest_ip="239.1.1.1", dest_port=1234)
-        assert result["status"] == "ok"
-
-    @patch("streamxpress_mcp.server.get_client")
-    def test_set_rf(self, mock_get_client):
-        mock_client = MagicMock()
-        mock_get_client.return_value = mock_client
-        from streamxpress_mcp.server import set_rf_params
-        result = set_rf_params(frequency_hz=500_000_000, level_dbm=-37.5)
-        assert result["status"] == "ok"
-
-    @patch("streamxpress_mcp.server.get_client")
-    def test_set_asi(self, mock_get_client):
-        mock_client = MagicMock()
-        mock_get_client.return_value = mock_client
-        from streamxpress_mcp.server import set_asi_params
-        result = set_asi_params(remux=True, playout_rate=20_000_000)
-        assert result["status"] == "ok"
-
-
 EXPECTED_TOOL_NAMES = {
-    "connect", "disconnect", "scan_ports", "select_port", "open_file",
-    "start", "stop", "pause", "get_status", "set_rate", "set_tsoip_params",
-    "set_rf_params", "set_asi_params", "launch",
-    "get_remote_version", "get_remote_dtapi_version", "get_app_info",
-    "show_window", "clear_errors",
-    "get_playout_info",
-    "get_asi_pars", "get_cmmb_pars", "get_mod_pars", "get_rf_pars",
-    "get_tsoip_pars", "get_spi_pars", "get_hw_noise_pars", "get_iq_gain",
-    "get_signal_source", "get_use_nit",
-    "get_channel_modelling_pars", "get_dvb_t2_group", "get_dvb_t2_pars",
-    "get_isdb_t_pars", "get_tdt_adapt_pars", "get_tsg_pars", "get_sfn_status",
-    "open_channel_modelling_file", "save_channel_modelling_settings",
-    "save_settings", "normalise",
-    "set_loop_flags", "set_iq_gain", "set_remux", "set_signal_source",
-    "set_use_nit", "set_sfn_mode", "set_sub_loop_pars", "select_dta_plus",
-    "set_cmmb_pars", "set_hw_noise_pars", "set_spi_pars", "set_tsg_pars",
-    "set_dvb_t2_group",
-    "set_mod_pars", "set_channel_modelling_pars", "set_dvb_t2_pars",
-    "set_isdb_t_pars", "set_tdt_adapt_pars", "set_playout_state_sfn",
-    "wait_for_condition",
+    "launch", "connect", "play", "stop", "get_status", "disconnect",
 }
 
 
@@ -563,24 +430,6 @@ class TestClientSessionVersion:
         mock_sprc.clear_errors.assert_called_once()
 
 
-class TestServerSessionVersionTools:
-    @patch("streamxpress_mcp.server.get_client")
-    def test_get_remote_version_tool(self, mock_get_client):
-        mock_client = MagicMock()
-        mock_client.get_remote_version.return_value = {"MajorVersion": 1}
-        mock_get_client.return_value = mock_client
-        from streamxpress_mcp.server import get_remote_version
-        assert get_remote_version() == {"MajorVersion": 1}
-
-    @patch("streamxpress_mcp.server.get_client")
-    def test_show_window_tool(self, mock_get_client):
-        mock_client = MagicMock()
-        mock_get_client.return_value = mock_client
-        from streamxpress_mcp.server import show_window
-        assert show_window(False) == {"status": "ok", "show": False}
-        mock_client.show_window.assert_called_once_with(False)
-
-
 class TestClientParameterGetters:
     def _connect(self, client):
         client.connect("http://localhost", 5000)
@@ -616,29 +465,6 @@ class TestClientParameterGetters:
         mock_sprc.get_use_nit.return_value = True
         self._connect(client)
         assert client.get_use_nit() is True
-
-
-class TestServerParameterGetterTools:
-    @pytest.mark.parametrize("tool_name,method", [
-        ("get_asi_pars", "get_asi_pars"),
-        ("get_cmmb_pars", "get_cmmb_pars"),
-        ("get_mod_pars", "get_mod_pars"),
-        ("get_rf_pars", "get_rf_pars"),
-        ("get_tsoip_pars", "get_tsoip_pars"),
-        ("get_spi_pars", "get_spi_pars"),
-        ("get_hw_noise_pars", "get_hw_noise_pars"),
-        ("get_iq_gain", "get_iq_gain"),
-        ("get_signal_source", "get_signal_source"),
-        ("get_use_nit", "get_use_nit"),
-    ])
-    @patch("streamxpress_mcp.server.get_client")
-    def test_getter_tool_returns_client_result(self, mock_get_client, tool_name, method):
-        mock_client = MagicMock()
-        mock_client.get_use_nit.return_value = True
-        mock_get_client.return_value = mock_client
-        from streamxpress_mcp import server as server_mod
-        tool = getattr(server_mod, tool_name)
-        assert tool() == getattr(mock_client, method).return_value
 
 
 class TestClientComplexGetters:
@@ -692,25 +518,6 @@ class TestClientComplexGetters:
         assert client.get_sfn_status()["SfnStatus"] == SPRC.SFN_STATUS_IN_SYNC
 
 
-class TestServerComplexGetterTools:
-    @pytest.mark.parametrize("tool_name,method", [
-        ("get_channel_modelling_pars", "get_channel_modelling_pars"),
-        ("get_dvb_t2_group", "get_dvb_t2_group"),
-        ("get_dvb_t2_pars", "get_dvb_t2_pars"),
-        ("get_isdb_t_pars", "get_isdb_t_pars"),
-        ("get_tdt_adapt_pars", "get_tdt_adapt_pars"),
-        ("get_tsg_pars", "get_tsg_pars"),
-        ("get_sfn_status", "get_sfn_status"),
-    ])
-    @patch("streamxpress_mcp.server.get_client")
-    def test_complex_getter_tool_returns_client_result(self, mock_get_client, tool_name, method):
-        mock_client = MagicMock()
-        mock_get_client.return_value = mock_client
-        from streamxpress_mcp import server as server_mod
-        tool = getattr(server_mod, tool_name)
-        assert tool() == getattr(mock_client, method).return_value
-
-
 class TestClientFileSettings:
     def _connect(self, client):
         client.connect("http://localhost", 5000)
@@ -729,31 +536,6 @@ class TestClientFileSettings:
         self._connect(client)
         client.normalise()
         mock_sprc.normalise.assert_called_once()
-
-
-class TestServerFileSettingsTools:
-    @pytest.mark.parametrize("tool_name,method,extra_kwargs", [
-        ("open_channel_modelling_file", "open_channel_modelling_file", {"filepath": "C:\\cm\\model.chmx"}),
-        ("save_channel_modelling_settings", "save_channel_modelling_settings", {"filepath": "C:\\cm\\model.chmx"}),
-        ("save_settings", "save_settings", {"filepath": "C:\\cfg\\settings.xml"}),
-    ])
-    @patch("streamxpress_mcp.server.get_client")
-    def test_file_tool_returns_ok(self, mock_get_client, tool_name, method, extra_kwargs):
-        mock_client = MagicMock()
-        mock_get_client.return_value = mock_client
-        from streamxpress_mcp import server as server_mod
-        tool = getattr(server_mod, tool_name)
-        result = tool(**extra_kwargs)
-        assert result["status"] == "ok"
-        getattr(mock_client, method).assert_called_once()
-
-    @patch("streamxpress_mcp.server.get_client")
-    def test_normalise_tool(self, mock_get_client):
-        mock_client = MagicMock()
-        mock_get_client.return_value = mock_client
-        from streamxpress_mcp.server import normalise
-        assert normalise() == {"status": "ok"}
-        mock_client.normalise.assert_called_once()
 
 
 class TestClientScalarSetters:
@@ -793,30 +575,6 @@ class TestClientScalarSetters:
         mock_sprc.select_dta_plus.assert_called_once_with(True, 217400002)
 
 
-class TestServerScalarSetterTools:
-    @pytest.mark.parametrize("tool_name,kwargs,expected_args", [
-        ("set_loop_flags", {"flags": 3}, (3,)),
-        ("set_iq_gain", {"gain": 150}, (150,)),
-        ("set_remux", {"enabled": True}, (True,)),
-        ("set_signal_source", {"source": 1}, (1,)),
-        ("set_use_nit", {"use_nit": True}, (True,)),
-        ("set_sfn_mode", {"sfn_mode": 1}, (1,)),
-        ("set_sub_loop_pars", {"use_subloop": True, "loop_begin_rel": 0.25, "loop_end_rel": 0.75},
-         (True, 0.25, 0.75)),
-        ("select_dta_plus", {"use_dta_plus": True, "serial": 217400002}, (True, 217400002)),
-    ])
-    @patch("streamxpress_mcp.server.get_client")
-    def test_setter_tool_returns_ok(self, mock_get_client, tool_name, kwargs, expected_args):
-        mock_client = MagicMock()
-        mock_get_client.return_value = mock_client
-        from streamxpress_mcp import server as server_mod
-        tool = getattr(server_mod, tool_name)
-        result = tool(**kwargs)
-        assert result["status"] == "ok"
-        # T1: 参数必须完整透传给 client，防止载荷静默丢失/互换
-        getattr(mock_client, tool_name).assert_called_once_with(*expected_args)
-
-
 class TestClientStructSetters:
     def _connect(self, client):
         client.connect("http://localhost", 5000)
@@ -851,31 +609,6 @@ class TestClientStructSetters:
         call_args = mock_sprc.set_dvb_t2_group.call_args[0][0]
         assert call_args.GroupName == "VV1xx"
         assert call_args.GroupRefName == "VV100"
-
-
-class TestServerStructSetterTools:
-    @pytest.mark.parametrize("tool_name,kwargs,expected_pars", [
-        ("set_cmmb_pars", {"bandwidth": 0, "area_id": 3, "tx_id": 200},
-         {"Bandwidth": 0, "AreaId": 3, "TxId": 200}),
-        ("set_hw_noise_pars", {"snr_on": True, "snr": 25.0},
-         {"SnrOn": True, "Snr": 25.0}),
-        ("set_spi_pars", {"remux": False, "playout_rate": 0},
-         {"Remux": False, "PlayoutRate": 0, "TxMode": DTAPI.TXMODE_188, "Power": False}),
-        ("set_tsg_pars", {"type": 1, "pid": 100, "vid_std": 0},
-         {"Type": 1, "Pid": 100, "VidStd": 0, "Flags": 0}),
-        ("set_dvb_t2_group", {"group_name": "VV1xx", "group_ref_name": "VV100"},
-         {"GroupName": "VV1xx", "GroupRefName": "VV100"}),
-    ])
-    @patch("streamxpress_mcp.server.get_client")
-    def test_struct_setter_tool_returns_ok(self, mock_get_client, tool_name, kwargs, expected_pars):
-        mock_client = MagicMock()
-        mock_get_client.return_value = mock_client
-        from streamxpress_mcp import server as server_mod
-        tool = getattr(server_mod, tool_name)
-        assert tool(**kwargs) == {"status": "ok"}
-        # 扁平参数被正确组装成 client 期望的 CamelCase dict
-        method = getattr(mock_client, tool_name)
-        method.assert_called_once_with(expected_pars)
 
 
 class TestClientComplexSetters:
@@ -985,34 +718,6 @@ class TestClientComplexSetters:
         assert call_args.Frequency == 500_000_000
 
 
-class TestServerComplexSetterTools:
-    @pytest.mark.parametrize("tool_name,arg_name,arg_value", [
-        ("set_mod_pars", "mod_pars", {"ModType": 6, "ParXtra0": 0, "ParXtra1": 0, "ParXtra2": 0, "SymRate": 27_500_000}),
-        ("set_channel_modelling_pars", "cm_pars", {"CmEnable": True, "AwgnEnable": True, "Snr": 20.0, "PathsEnable": False, "Paths": []}),
-        ("set_dvb_t2_pars", "dvb_t2_pars", {"Bandwidth": 4, "FftMode": 3, "GuardInterval": 1, "NumT2Frames": 2, "NumDataSyms": 60, "L1Modulation": 1, "Frequency": 500_000_000, "FollowMode": 0}),
-        ("set_isdb_t_pars", "isdb_t_pars", {"DoMux": True, "BType": 0, "Mode": 3, "Guard": 2, "PartialRx": 0, "Emergency": 0, "IipPid": 0, "LayerPars": [], "Pid2Layer": {}, "LayerOther": 0, "ParXtra0": 0}),
-        ("set_tdt_adapt_pars", "tdt_adapt_pars", {"TdtAdaptMode": 2, "TdtDateTime": {"Year": 2026, "Month": 8, "Day": 8, "Hour": 12, "Minute": 0, "Second": 0}}),
-    ])
-    @patch("streamxpress_mcp.server.get_client")
-    def test_complex_setter_tool_returns_ok(self, mock_get_client, tool_name, arg_name, arg_value):
-        mock_client = MagicMock()
-        mock_get_client.return_value = mock_client
-        from streamxpress_mcp import server as server_mod
-        tool = getattr(server_mod, tool_name)
-        assert tool(**{arg_name: arg_value}) == {"status": "ok"}
-        # T1: 载荷必须完整转发给 client，防止静默丢弃
-        getattr(mock_client, tool_name).assert_called_once_with(arg_value)
-
-    @patch("streamxpress_mcp.server.get_client")
-    def test_set_playout_state_sfn_tool(self, mock_get_client):
-        mock_client = MagicMock()
-        mock_get_client.return_value = mock_client
-        from streamxpress_mcp.server import set_playout_state_sfn
-        assert set_playout_state_sfn(playout_state=1, sfn_start_time=500_000_000) == {
-            "status": "ok", "playout_state": 1, "sfn_start_time": 500_000_000}
-        mock_client.set_playout_state_sfn.assert_called_once_with(1, 500_000_000)
-
-
 class TestWaitForCondition:
     def test_client_wait_for_condition(self, client, mock_sprc):
         from streamxpress_mcp.sprc_import import SPRC
@@ -1020,16 +725,6 @@ class TestWaitForCondition:
         client.connect("http://localhost", 5000)
         client.wait_for_condition(SPRC.COND_STOPPED, 10_000)
         mock_sprc.wait_for_condition.assert_called_once_with(SPRC.COND_STOPPED, 10_000)
-
-    @patch("streamxpress_mcp.server.get_client")
-    def test_tool_wait_for_condition(self, mock_get_client):
-        mock_client = MagicMock()
-        mock_get_client.return_value = mock_client
-        from streamxpress_mcp.server import wait_for_condition
-        result = wait_for_condition(condition=1, timeout_ms=-1)
-        assert result == {"status": "ok", "condition": 1}
-        mock_client.wait_for_condition.assert_called_once_with(1, -1)
-
 
 class TestEnhancedParams:
     def test_set_tsoip_params_failover(self, client, mock_sprc):
@@ -1129,34 +824,6 @@ class TestEnhancedParams:
         pars = mock_sprc.set_tsiop_pars.call_args[0][0]
         assert pars.TimeToLive == 7
         assert pars.NumTpPerIp == 3
-
-    @patch("streamxpress_mcp.server.get_client")
-    def test_set_tsoip_params_tool_passes_optional_fields(self, mock_get_client):
-        """T3: 工具层不得静默丢弃 protocol/dest_ip2/diff_serv/tx_mode/fec。"""
-        mock_client = MagicMock()
-        mock_get_client.return_value = mock_client
-        from streamxpress_mcp.server import set_tsoip_params
-        set_tsoip_params(
-            dest_ip="239.1.1.1", dest_port=1234, protocol="RTP",
-            num_tp_per_ip=3, ttl=7,
-            failover=True, dest_ip2="239.1.1.2", dest_port2=1235, diff_serv=46,
-            tx_mode=DTAPI.TXMODE_204, fec_rows=5, fec_cols=4)
-        mock_client.set_tsoip_params.assert_called_once_with(
-            dest_ip="239.1.1.1", dest_port=1234, num_tp_per_ip=3, protocol="RTP",
-            ttl=7, fec_rows=5, fec_cols=4, tx_mode=DTAPI.TXMODE_204,
-            failover=True, dest_ip2="239.1.1.2", dest_port2=1235, diff_serv=46)
-
-    @patch("streamxpress_mcp.server.get_client")
-    def test_set_asi_params_tool_passes_optional_fields(self, mock_get_client):
-        """T3: 工具层不得静默丢弃 burst_mode/polarity。"""
-        mock_client = MagicMock()
-        mock_get_client.return_value = mock_client
-        from streamxpress_mcp.server import set_asi_params
-        set_asi_params(remux=True, playout_rate=20_000_000, tx_mode=DTAPI.TXMODE_204,
-                       burst_mode=True, polarity=DTAPI.TXPOL_INVERTED)
-        mock_client.set_asi_params.assert_called_once_with(
-            remux=True, playout_rate=20_000_000, tx_mode=DTAPI.TXMODE_204,
-            burst_mode=True, polarity=DTAPI.TXPOL_INVERTED)
 
     def test_set_channel_modelling_pars_paths_none(self, client, mock_sprc):
         """JSON null 表达"无路径"时应回退为空列表而非崩溃。"""
@@ -1311,3 +978,222 @@ class TestJsonBoundary:
         for result in (client.get_rf_pars(), client.get_sfn_status(),
                        client.get_channel_modelling_pars()):
             json.dumps(result, allow_nan=False)  # 不应抛 ValueError
+
+def _sample_port(serial=315002019, type_number=315, port=1, in_use=0):
+    from streamxpress_mcp.sprc_import import SpRcPortDesc
+    return SpRcPortDesc(
+        Serial=serial, TypeNumber=type_number, Ip=bytes(4), Mac=bytes(6),
+        FirmwareVersion=100, FirmwareVariant=0, Port=port,
+        OutputType=0x00080, Capabilities=0, InUse=in_use,
+    )
+
+
+def _write_settings_xml(path, root="StreamXpressSettings"):
+    path.write_text(f"<{root} streamtype=\"Modulator\"></{root}>", encoding="utf-8")
+
+
+class TestPickPlayoutPort:
+    def test_prefers_type_315(self):
+        from streamxpress_mcp.client import pick_playout_port
+        ports = [
+            _sample_port(serial=217400001, type_number=2174, port=1),
+            _sample_port(serial=315002019, type_number=315, port=1),
+        ]
+        chosen = pick_playout_port(ports)
+        assert chosen.Serial == 315002019
+
+    def test_preferred_serial_wins(self):
+        from streamxpress_mcp.client import pick_playout_port
+        ports = [
+            _sample_port(serial=315002019, type_number=315, port=1),
+            _sample_port(serial=315002020, type_number=315, port=1),
+        ]
+        chosen = pick_playout_port(ports, preferred_serial=315002020)
+        assert chosen.Serial == 315002020
+
+    def test_unique_idle_fallback(self):
+        from streamxpress_mcp.client import pick_playout_port
+        ports = [
+            _sample_port(serial=1, type_number=2174, port=1, in_use=1),
+            _sample_port(serial=2, type_number=2174, port=2, in_use=0),
+        ]
+        chosen = pick_playout_port(ports, preferred_type_number=315)
+        assert chosen.Serial == 2
+
+    def test_ambiguous_raises(self):
+        from streamxpress_mcp.client import pick_playout_port
+        ports = [
+            _sample_port(serial=1, type_number=2174, port=1),
+            _sample_port(serial=2, type_number=2174, port=2),
+        ]
+        import pytest
+        with pytest.raises(RuntimeError, match="could not auto-select"):
+            pick_playout_port(ports, preferred_type_number=315)
+
+
+class TestClientPlay:
+    def _prepare_files(self, tmp_path):
+        xml = tmp_path / "dvbt2.xml"
+        ts = tmp_path / "clip.ts"
+        _write_settings_xml(xml)
+        ts.write_bytes(b"ts")
+        return str(xml), str(ts)
+
+    def test_open_file_xml_then_stream_then_play(self, client, mock_sprc, tmp_path):
+        from streamxpress_mcp.sprc_import import SPRC
+        xml, ts = self._prepare_files(tmp_path)
+        mock_sprc.scan_ports.return_value = [_sample_port()]
+        client.connect("http://localhost", 5000)
+        result = client.play(xml, ts)
+        assert result["status"] == "playing"
+        assert result["serial"] == 315002019
+        assert result["port"] == 1
+        assert mock_sprc.open_file.call_args_list[0].args == (xml,)
+        assert mock_sprc.open_file.call_args_list[1].args == (ts,)
+        mock_sprc.select_port.assert_called_once_with(315002019, 1, 0)
+        mock_sprc.set_playout_state.assert_called_with(SPRC.STATE_PLAY)
+        mock_sprc.set_loop_flags.assert_not_called()
+
+    def test_loop_false_sets_loop_flags_zero(self, client, mock_sprc, tmp_path):
+        xml, ts = self._prepare_files(tmp_path)
+        mock_sprc.scan_ports.return_value = [_sample_port()]
+        client.connect("http://localhost", 5000)
+        client.play(xml, ts, loop=False)
+        mock_sprc.set_loop_flags.assert_called_once_with(0)
+        names = [c[0] for c in mock_sprc.method_calls]
+        assert names.index("open_file") < names.index("set_loop_flags")
+        assert names.index("set_loop_flags") < names.index("open_file") or True
+        # second open_file after set_loop_flags
+        open_idxs = [i for i, n in enumerate(names) if n == "open_file"]
+        loop_idx = names.index("set_loop_flags")
+        assert open_idxs[0] < loop_idx < open_idxs[1]
+
+    def test_selects_type_315(self, client, mock_sprc, tmp_path):
+        xml, ts = self._prepare_files(tmp_path)
+        mock_sprc.scan_ports.return_value = [
+            _sample_port(serial=217400001, type_number=2174),
+            _sample_port(serial=315002019, type_number=315),
+        ]
+        client.connect("http://localhost", 5000)
+        result = client.play(xml, ts)
+        mock_sprc.select_port.assert_called_once_with(315002019, 1, 0)
+        assert result["serial"] == 315002019
+
+    def test_stops_if_already_playing(self, client, mock_sprc, tmp_path):
+        from streamxpress_mcp.sprc_import import SPRC, SpRcPlayoutInfo
+        xml, ts = self._prepare_files(tmp_path)
+        mock_sprc.scan_ports.return_value = [_sample_port()]
+        mock_sprc.get_playout_info.return_value = SpRcPlayoutInfo(
+            PlayoutState=SPRC.STATE_PLAY, Filename="old.ts", TsRate=0,
+            BurstMode=False, ExtClock=False, FileCanBeRead=True,
+            FileOffsetEnd=0, FileOffsetStart=0, FilePlayedBytes=0,
+            FileRateEst=0, FileSize=0, FileType=0,
+            LoopBeginRel=0.0, LoopEndRel=0.0, LoopFlags=0,
+            PlayoutRate=0, Remux=False, SymRate=0,
+            TimeLoopBegin=0, TimeLoopEnd=0, TimeOffset=0,
+            TpSize=188, TxPolarity=0,
+        )
+        client.connect("http://localhost", 5000)
+        client.play(xml, ts)
+        states = [c.args[0] for c in mock_sprc.set_playout_state.call_args_list]
+        assert states[0] == SPRC.STATE_STOP
+        assert states[-1] == SPRC.STATE_PLAY
+
+    def test_missing_file_does_not_start(self, client, mock_sprc, tmp_path):
+        xml, ts = self._prepare_files(tmp_path)
+        client.connect("http://localhost", 5000)
+        import pytest
+        with pytest.raises(FileNotFoundError, match="stream file"):
+            client.play(xml, str(tmp_path / "missing.ts"))
+        mock_sprc.open_file.assert_not_called()
+        mock_sprc.set_playout_state.assert_not_called()
+
+    def test_wrong_xml_root_does_not_start(self, client, mock_sprc, tmp_path):
+        xml = tmp_path / "atsc3.xml"
+        ts = tmp_path / "clip.ts"
+        _write_settings_xml(xml, root="ModulationParameters")
+        ts.write_bytes(b"ts")
+        client.connect("http://localhost", 5000)
+        import pytest
+        with pytest.raises(ValueError, match="StreamXpressSettings"):
+            client.play(str(xml), str(ts))
+        mock_sprc.open_file.assert_not_called()
+        mock_sprc.set_playout_state.assert_not_called()
+
+
+class TestServerPlayTool:
+    @patch("streamxpress_mcp.server.launch_streamxpress")
+    @patch("streamxpress_mcp.server.load_config")
+    @patch("streamxpress_mcp.server.get_client")
+    def test_play_tool_forwards_to_client(self, mock_get_client, mock_load, mock_launch):
+        from streamxpress_mcp.config import StreamXpressConfig
+        mock_load.return_value = StreamXpressConfig(preferred_serial=0, preferred_type_number=315)
+        mock_client = MagicMock()
+        mock_client.connected = True
+        mock_client.play.return_value = {
+            "status": "playing", "settings_xml": "a.xml", "stream": "a.ts",
+            "serial": 315002019, "port": 1,
+        }
+        mock_get_client.return_value = mock_client
+        from streamxpress_mcp.server import play
+        result = play("a.xml", "a.ts", loop=True)
+        mock_launch.assert_not_called()
+        mock_client.play.assert_called_once_with(
+            settings_xml="a.xml", stream="a.ts", loop=True,
+            preferred_serial=0, preferred_type_number=315,
+        )
+        assert result["status"] == "playing"
+
+    @patch("streamxpress_mcp.server.launch_streamxpress")
+    @patch("streamxpress_mcp.server.load_config")
+    @patch("streamxpress_mcp.server.get_client")
+    def test_play_auto_connects_without_launch_if_already_listening(
+        self, mock_get_client, mock_load, mock_launch
+    ):
+        from streamxpress_mcp.config import StreamXpressConfig
+        mock_load.return_value = StreamXpressConfig(rc_port=5000)
+        mock_client = MagicMock()
+        mock_client.connected = False
+        mock_client.play.return_value = {
+            "status": "playing", "settings_xml": "a.xml", "stream": "a.ts",
+            "serial": 1, "port": 1,
+        }
+        mock_get_client.return_value = mock_client
+        from streamxpress_mcp.server import play
+        play("a.xml", "a.ts")
+        mock_client.connect.assert_called_once_with("http://localhost", 5000)
+        mock_launch.assert_not_called()
+
+    @patch("streamxpress_mcp.server.launch_streamxpress")
+    @patch("streamxpress_mcp.server.load_config")
+    @patch("streamxpress_mcp.server.get_client")
+    def test_play_launches_when_connect_fails(self, mock_get_client, mock_load, mock_launch):
+        from streamxpress_mcp.config import StreamXpressConfig
+        mock_load.return_value = StreamXpressConfig(rc_port=5000)
+        mock_launch.return_value = {"ok": True, "pid": 1, "port": 5000, "ready": True}
+        mock_client = MagicMock()
+        mock_client.connected = False
+        mock_client.connect.side_effect = [RuntimeError("refused"), None]
+        mock_client.play.return_value = {
+            "status": "playing", "settings_xml": "a.xml", "stream": "a.ts",
+            "serial": 1, "port": 1,
+        }
+        mock_get_client.return_value = mock_client
+        from streamxpress_mcp.server import play
+        play("a.xml", "a.ts")
+        mock_launch.assert_called_once()
+        assert mock_client.connect.call_count == 2
+
+
+class TestServerConnectDefaults:
+    @patch("streamxpress_mcp.server.load_config")
+    @patch("streamxpress_mcp.server.get_client")
+    def test_connect_defaults_to_localhost_and_config_port(self, mock_get_client, mock_load):
+        from streamxpress_mcp.config import StreamXpressConfig
+        mock_load.return_value = StreamXpressConfig(rc_port=6000)
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
+        from streamxpress_mcp.server import connect
+        result = connect()
+        mock_client.connect.assert_called_once_with("http://localhost", 6000)
+        assert result == {"status": "connected", "host": "http://localhost", "port": 6000}

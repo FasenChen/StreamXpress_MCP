@@ -5,7 +5,7 @@ edit it in place (and typically run `git update-index --skip-worktree
 config.json` so local path edits stay out of git). Lookup order:
   1. file path from env var STREAMXPRESS_MCP_CONFIG
   2. <project root>/config.json
-  3. defaults (no file -> empty paths, rc_port=5000)
+  3. defaults (no file -> empty paths, rc_port=5000, preferred_type_number=315)
 """
 
 import json
@@ -23,6 +23,15 @@ class StreamXpressConfig:
     streamxpress_path: str = ""
     sprc_api_path: str = ""
     rc_port: int = 5000
+    preferred_serial: int = 0
+    preferred_type_number: int = 315
+
+
+def _as_int(value, default: int) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
 
 
 def _find_config_file() -> Path | None:
@@ -47,17 +56,14 @@ def load_config() -> StreamXpressConfig:
         raise ValueError(f"配置文件解析失败: {cfg_file} — {exc}") from exc
     if not isinstance(data, dict):
         raise ValueError(f"配置文件格式错误（应为 JSON 对象）: {cfg_file}")
-    rc_port = data.get("rc_port", 5000)
-    try:
-        rc_port = int(rc_port)
-    except (TypeError, ValueError):
-        rc_port = 5000
     streamxpress_path = data.get("streamxpress_path")
     sprc_api_path = data.get("sprc_api_path")
     return StreamXpressConfig(
         streamxpress_path=streamxpress_path if isinstance(streamxpress_path, str) else "",
         sprc_api_path=sprc_api_path if isinstance(sprc_api_path, str) else "",
-        rc_port=rc_port,
+        rc_port=_as_int(data.get("rc_port", 5000), 5000),
+        preferred_serial=_as_int(data.get("preferred_serial", 0), 0),
+        preferred_type_number=_as_int(data.get("preferred_type_number", 315), 315),
     )
 
 

@@ -2,7 +2,9 @@
 
 import math
 import threading
-from dataclasses import asdict
+import xml.etree.ElementTree as ET
+from dataclasses import asdict, replace
+from pathlib import Path
 
 from .sprc_import import SPRC_client, SpRcPortDesc, SpRcException, SPRC_RESULT
 from .sprc_import import (
@@ -12,6 +14,16 @@ from .sprc_import import (
     SpRcDateTime, SpRcTdtAdaptPars, SpRcPlayoutSfnPars,
 )
 from .sprc_import import SPRC, DTAPI
+
+from .dvb_t2 import (
+    parse_cell_id,
+    parse_dvbt2_bandwidth,
+    parse_dvbt2_constellation,
+    parse_dvbt2_fft_mode,
+    parse_dvbt2_guard_interval,
+    parse_frequency_hz,
+)
+
 
 
 def _jsonable(value):
@@ -56,6 +68,78 @@ def _raise_sprc_error(e: SpRcException) -> None:
     raise RuntimeError(
         f"StreamXpress error {e.ErrorCode.name} ({e.ErrorCode.value}): {str(e) or 'no detail'}"
     ) from e
+
+
+
+def _xml_local_name(tag: str) -> str:
+    if tag.startswith("{") and "}" in tag:
+        return tag.split("}", 1)[1]
+    return tag
+
+
+def _require_file(path: str, kind: str) -> str:
+    p = Path(path)
+    if not p.is_file():
+        raise FileNotFoundError(f"{kind} not found: {path}")
+    return str(p)
+
+
+def validate_settings_xml(path: str) -> str:
+    """Ensure *path* is a StreamXpress settings snapshot (not Atsc3Xpress)."""
+    resolved = _require_file(path, "settings XML")
+    try:
+        root = ET.parse(resolved).getroot()
+    except ET.ParseError as exc:
+        raise ValueError(f"settings XML is not valid XML: {path}: {exc}") from exc
+    if _xml_local_name(root.tag) != "StreamXpressSettings":
+        raise ValueError(
+            "settings XML root must be StreamXpressSettings "
+            f"(got {root.tag!r}); Atsc3Xpress / other XML is not supported"
+        )
+    return resolved
+
+
+def pick_playout_port(
+    ports: list[SpRcPortDesc],
+    preferred_serial: int = 0,
+    preferred_type_number: int = 315,
+) -> SpRcPortDesc:
+    """Choose a local output port for play().
+
+    Priority: preferred_serial (if non-zero) -> preferred_type_number
+    (default 315) -> the unique idle port -> the unique port.
+    """
+    ports = list(ports)
+    if not ports:
+        raise RuntimeError("no StreamXpress output ports found")
+
+    def _fmt(ps: list[SpRcPortDesc]) -> str:
+        return ", ".join(
+            f"S/N {p.Serial} type {p.TypeNumber} port {p.Port}" for p in ps
+        )
+
+    if preferred_serial:
+        matched = [p for p in ports if p.Serial == preferred_serial]
+        if not matched:
+            raise RuntimeError(
+                f"preferred serial {preferred_serial} not found; available: {_fmt(ports)}"
+            )
+        return sorted(matched, key=lambda p: p.Port)[0]
+
+    if preferred_type_number:
+        matched = [p for p in ports if p.TypeNumber == preferred_type_number]
+        if matched:
+            return sorted(matched, key=lambda p: (p.Serial, p.Port))[0]
+
+    idle = [p for p in ports if p.InUse == 0]
+    if len(idle) == 1:
+        return idle[0]
+    if len(ports) == 1:
+        return ports[0]
+    raise RuntimeError(
+        f"could not auto-select a port (wanted type {preferred_type_number}); "
+        f"available: {_fmt(ports)}"
+    )
 
 
 class StreamXpressClient:
@@ -110,6 +194,12 @@ class StreamXpressClient:
             self._connected = False
             if error is not None:
                 raise RuntimeError(f"failed to close StreamXpress session: {error}") from error
+
+
+    @property
+    def connected(self) -> bool:
+        with self._lock:
+            return self._connected and self._sprc is not None
 
     def _ensure_connected(self) -> SPRC_client:
         if not self._connected or self._sprc is None:
@@ -187,6 +277,53 @@ class StreamXpressClient:
 
     def pause(self) -> None:
         self._sprc_call(lambda s: s.set_playout_state(SPRC.STATE_PAUSE))
+
+    def play(
+        self,
+        settings_xml: str,
+        stream: str,
+        loop: bool = True,
+        preferred_serial: int = 0,
+        preferred_type_number: int = 315,
+    ) -> dict:
+        """Load a settings XML, then a stream, then start playout.
+
+        File/XML checks run before any SOAP call. Port selection and the
+        OpenFile(xml) -> OpenFile(stream) -> PLAY sequence run in one
+        `_sprc_call` so a transport failure marks the session stale once.
+        """
+        settings_xml = validate_settings_xml(settings_xml)
+        stream = _require_file(stream, "stream file")
+
+        def _call(s):
+            try:
+                info = s.get_playout_info()
+                if getattr(info, "PlayoutState", None) == SPRC.STATE_PLAY:
+                    s.set_playout_state(SPRC.STATE_STOP)
+            except SpRcException:
+                pass
+
+            chosen = pick_playout_port(
+                s.scan_ports(),
+                preferred_serial=preferred_serial,
+                preferred_type_number=preferred_type_number,
+            )
+            s.select_port(chosen.Serial, chosen.Port, 0)
+            s.open_file(settings_xml)
+            if not loop:
+                s.set_loop_flags(0)
+            s.open_file(stream)
+            s.set_playout_state(SPRC.STATE_PLAY)
+            return {
+                "status": "playing",
+                "settings_xml": settings_xml,
+                "stream": stream,
+                "serial": chosen.Serial,
+                "port": chosen.Port,
+            }
+
+        return self._sprc_call(_call)
+
 
     # ── Session & version ──
 
@@ -481,6 +618,81 @@ class StreamXpressClient:
                 SpRcPlayoutSfnPars(PlayoutState=playout_state, SfnStartTime=sfn_start_time)
             )
         )
+
+
+    def configure_dvb_t2(
+        self,
+        frequency_hz: int,
+        bandwidth: str | int = "8MHz",
+        fft_mode: str | int = "32K",
+        guard_interval: str | int = "1/128",
+        constellation: str | int = "256QAM",
+        cell_id: int = 0,
+        level_dbm: float | None = None,
+        serial: int | None = None,
+        port_num: int = 1,
+    ) -> dict:
+        """Apply the everyday DVB-T2 preset without clobbering other T2 fields.
+
+        Parses human-readable labels, optionally selects the port as DVB-T2,
+        disables NIT-derived modulation if it is on, overlays Bandwidth /
+        FftMode / GuardInterval / Modulation / CellId / L1 Frequency on the
+        current SpRcDvbT2Pars, then writes RF frequency (preserving level and
+        RF flags unless level_dbm is given).
+        """
+        freq = parse_frequency_hz(frequency_hz)
+        bw = parse_dvbt2_bandwidth(bandwidth)
+        fft = parse_dvbt2_fft_mode(fft_mode)
+        gi = parse_dvbt2_guard_interval(guard_interval)
+        cons = parse_dvbt2_constellation(constellation)
+        cid = parse_cell_id(cell_id)
+
+        def _call(s):
+            port_selected = False
+            if serial is not None:
+                s.select_port(serial, port_num, SPRC.MOD_DVBT2)
+                port_selected = True
+
+            nit_disabled = False
+            if s.get_use_nit():
+                s.set_use_nit(False)
+                nit_disabled = True
+
+            current = s.get_dvb_t2_pars()
+            updated = replace(
+                current,
+                Bandwidth=bw,
+                FftMode=fft,
+                GuardInterval=gi,
+                Modulation=cons,
+                CellId=cid,
+                Frequency=freq,
+            )
+            s.set_dvb_t2_pars(updated)
+
+            rf = s.get_rf_pars()
+            level = rf.Level if level_dbm is None else level_dbm
+            s.set_rf_pars(SpRcRfPars(
+                Frequency=freq,
+                Level=level,
+                SpecInv=rf.SpecInv,
+                CW=rf.CW,
+                RfEnabledOnStop=rf.RfEnabledOnStop,
+            ))
+            return {
+                "status": "ok",
+                "frequency_hz": freq,
+                "level_dbm": level,
+                "bandwidth": bw,
+                "fft_mode": fft,
+                "guard_interval": gi,
+                "constellation": cons,
+                "cell_id": cid,
+                "nit_disabled": nit_disabled,
+                "port_selected": port_selected,
+            }
+
+        return self._sprc_call(_call)
 
     def wait_for_condition(self, condition: int, timeout_ms: int = -1) -> None:
         self._sprc_call(lambda s: s.wait_for_condition(condition, timeout_ms))
