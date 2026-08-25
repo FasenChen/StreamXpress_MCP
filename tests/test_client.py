@@ -11,7 +11,7 @@ class TestStreamXpressConnect:
 
     def test_connect_fails_if_already_connected(self, client, mock_sprc):
         client.connect("http://localhost", 5000)
-        with pytest.raises(RuntimeError, match="already connected"):
+        with pytest.raises(RuntimeError, match="已连接"):
             client.connect("http://localhost", 5000)
 
     def test_disconnect_closes_session(self, client, mock_sprc):
@@ -55,6 +55,12 @@ class TestStreamXpressPlayout:
         assert status["position_percent"] == 50.0
         assert status["file_name"] == "test.ts"
         assert status["ts_rate_bps"] == 25_000_000
+        assert status["playout_state"] == "PLAY"
+        assert status["playout_state_raw"] == 1
+        assert status["file_type"] == 0
+        assert status["file_type_name"] == "TS"
+        assert status["loop_flags"] == 0
+        assert status["loop_flags_names"] == []
 
     def test_get_status_all_fields(self, client, mock_sprc):
         """3b: get_status 补齐 8 个新字段，并钉住此前无断言的 5 个字段。"""
@@ -79,10 +85,12 @@ class TestStreamXpressPlayout:
         assert status["total_mem_load"] == 1024
         assert status["time_offset"] == 10
         assert status["remux"] is True
-        assert status["playout_state"] == 1
+        assert status["playout_state"] == "PLAY"
+        assert status["playout_state_raw"] == 1
         assert status["file_can_be_read"] is True
         assert status["file_rate_est"] == 25_100_000
         assert status["file_type"] == 1
+        assert status["file_type_name"] == "SD-SDI"
         assert status["loop_begin_rel"] == 0.25
         assert status["loop_end_rel"] == 0.75
         assert status["tx_polarity"] == 1
@@ -111,6 +119,11 @@ class TestStreamXpressPlayout:
         assert status["playout_rate"] == 25_000_000
         assert status["sym_rate"] == 27_500_000
         assert status["loop_flags"] == 3
+        assert status["loop_flags_names"] == ["LOOP_CC", "LOOP_PCR"]
+        assert status["playout_state"] == "PLAY"
+        assert status["playout_state_raw"] == 1
+        assert status["file_type"] == 0
+        assert status["file_type_name"] == "TS"
         assert status["file_size"] == 1024
         assert status["tp_size"] == 188
 
@@ -125,7 +138,7 @@ class TestErrorBoundary:
         with pytest.raises(RuntimeError, match="E_NO_LICK") as exc_info:
             client.get_status()
         # F2: str(e) 为空时兜底 "no detail"，尾部不留空白
-        assert str(exc_info.value).endswith("no detail")
+        assert str(exc_info.value).endswith("无详细错误信息")
         # R5.2: 错误码数值也被钉住（E_NO_LICK = 0x2000 + 11 = 8203）
         assert "(8203)" in str(exc_info.value)
 
@@ -195,7 +208,7 @@ class TestErrorBoundary:
         with pytest.raises(RuntimeError, match="E_COMMUNICATION"):
             client.get_status()
         assert client._connected is False
-        with pytest.raises(RuntimeError, match="not connected"):
+        with pytest.raises(RuntimeError, match="未连接"):
             client.stop()
 
     def test_oserror_marks_session_stale(self, client, mock_sprc):
@@ -208,14 +221,14 @@ class TestErrorBoundary:
     def test_disconnect_reports_cleanup_failure(self, client, mock_sprc):
         mock_sprc.cleanup.side_effect = OSError("connection reset")
         client.connect("http://localhost", 5000)
-        with pytest.raises(RuntimeError, match="failed to close"):
+        with pytest.raises(RuntimeError, match="关闭 StreamXpress 会话失败"):
             client.disconnect()
         # 本地状态仍被无条件重置
         assert client._connected is False
         assert client._sprc is None
 
     def test_call_requires_connection(self, client):
-        with pytest.raises(RuntimeError, match="not connected"):
+        with pytest.raises(RuntimeError, match="未连接"):
             client.stop()
 
 
@@ -265,7 +278,7 @@ class TestPickPlayoutPort:
             _sample_port(serial=2, type_number=2174, port=2),
         ]
         import pytest
-        with pytest.raises(RuntimeError, match="could not auto-select"):
+        with pytest.raises(RuntimeError, match="无法自动选择"):
             pick_playout_port(ports, preferred_type_number=315)
 
 
@@ -341,7 +354,7 @@ class TestClientPlay:
         xml, ts = self._prepare_files(tmp_path)
         client.connect("http://localhost", 5000)
         import pytest
-        with pytest.raises(FileNotFoundError, match="stream file"):
+        with pytest.raises(FileNotFoundError, match="码流文件"):
             client.play(xml, str(tmp_path / "missing.ts"))
         mock_sprc.open_file.assert_not_called()
         mock_sprc.set_playout_state.assert_not_called()

@@ -9,9 +9,12 @@ config.json` so local path edits stay out of git). Lookup order:
 """
 
 import json
+import logging
 import os
 from dataclasses import dataclass
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CONFIG_PATH = PROJECT_ROOT / "config.json"
@@ -47,7 +50,9 @@ def _find_config_file() -> Path | None:
 def load_config() -> StreamXpressConfig:
     cfg_file = _find_config_file()
     if cfg_file is None:
+        logger.debug("未找到配置文件，使用默认配置")
         return StreamXpressConfig()
+    logger.debug("加载配置文件: %s", cfg_file)
     try:
         data = json.loads(cfg_file.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError) as exc:

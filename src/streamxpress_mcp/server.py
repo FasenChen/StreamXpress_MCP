@@ -1,5 +1,6 @@
 """StreamXpress MCP Server — FastMCP instance with tool registrations."""
 
+import logging
 import threading
 
 from fastmcp import FastMCP
@@ -8,6 +9,8 @@ from .client import StreamXpressClient
 from .config import load_config, resolve_wsdl_path
 from .launcher import launch_streamxpress
 from .sprc_import import SPRC_client
+
+logger = logging.getLogger(__name__)
 
 # ── FastMCP application ──
 
@@ -39,23 +42,27 @@ def get_client() -> StreamXpressClient:
 def _ensure_local_session(client: StreamXpressClient) -> None:
     """Connect to localhost StreamXpress, launching it first if needed."""
     if client.connected:
+        logger.debug("本地会话已连接，无需重复连接")
         return
     cfg = load_config()
     host = "http://localhost"
     try:
         client.connect(host, cfg.rc_port)
+        logger.info("已连接到本机 StreamXpress: %s:%d", host, cfg.rc_port)
         return
     except Exception:
+        logger.info("直接连接失败，尝试启动 StreamXpress")
         launch_result = launch_streamxpress(cfg)
         try:
             client.connect(host, cfg.rc_port)
+            logger.info("启动后已连接到本机 StreamXpress: %s:%d", host, cfg.rc_port)
         except Exception as second:
             launch_note = ""
             if not launch_result.get("ok"):
-                launch_note = f"; launch: {launch_result.get('error')}"
+                launch_note = f"；启动失败: {launch_result.get('error')}"
             raise RuntimeError(
-                f"failed to connect to StreamXpress at {host}:{cfg.rc_port}: "
-                f"{second}{launch_note}"
+                f"连接本机 StreamXpress 失败（{host}:{cfg.rc_port}）"
+                f"{launch_note}；原始错误: {second}"
             ) from second
 
 
@@ -71,8 +78,12 @@ def connect(host: str = "http://localhost", port: int | None = None) -> dict:
         port: TCP port the -rc listener is bound to. None uses config.json rc_port.
     """
     cfg = load_config()
-    resolved_port = cfg.rc_port if port is None else int(port)
+    try:
+        resolved_port = cfg.rc_port if port is None else int(port)
+    except (TypeError, ValueError):
+        raise ValueError(f"端口必须是整数，收到: {port!r}")
     client = get_client()
+    logger.info("正在连接 %s:%d", host, resolved_port)
     try:
         client.disconnect()
     except Exception:
@@ -142,4 +153,9 @@ def launch() -> dict:
     probes the port until the RC service is ready. Returns pid, port and
     readiness; use the returned port with connect.
     """
-    return launch_streamxpress(load_config())
+    result = launch_streamxpress(load_config())
+    if result.get("ok"):
+        logger.info("StreamXpress 启动成功: pid=%s, port=%s", result.get("pid"), result.get("port"))
+    else:
+        logger.error("StreamXpress 启动失败: %s", result.get("error"))
+    return result
