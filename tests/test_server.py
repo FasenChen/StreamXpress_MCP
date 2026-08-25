@@ -1,7 +1,5 @@
-import pytest
+﻿import pytest
 from unittest.mock import MagicMock, patch
-
-from streamxpress_mcp.sprc_import import DTAPI
 
 
 class TestStreamXpressConnect:
@@ -26,61 +24,13 @@ class TestStreamXpressConnect:
         client.disconnect()
 
 
-class TestStreamXpressPortOps:
-    def test_scan_ports_returns_list(self, client, mock_sprc):
-        from streamxpress_mcp.sprc_import import SpRcPortDesc
-
-        mock_port = SpRcPortDesc(
-            Serial=217400001,
-            TypeNumber=2174,
-            Ip=bytes([0, 0, 0, 0]),
-            Mac=bytes([0, 0, 0, 0, 0, 0]),
-            FirmwareVersion=100,
-            FirmwareVariant=0,
-            Port=1,
-            OutputType=0x00001,  # OTYPE_ASI
-            Capabilities=0,
-            InUse=0,
-        )
-        mock_sprc.scan_ports.return_value = [mock_port]
-
-        client.connect("http://localhost", 5000)
-        ports = client.scan_ports()
-
-        assert len(ports) == 1
-        assert ports[0].Serial == 217400001
-
-    def test_select_port(self, client, mock_sprc):
-        client.connect("http://localhost", 5000)
-        client.select_port(217400001, 1, 1)
-        mock_sprc.select_port.assert_called_once_with(217400001, 1, 1)
-
-    def test_scan_ports_requires_connection(self, client):
-        with pytest.raises(RuntimeError, match="not connected"):
-            client.scan_ports()
-
-
 class TestStreamXpressPlayout:
-    def test_open_file(self, client, mock_sprc):
-        client.connect("http://localhost", 5000)
-        client.open_file("C:\\Streams\\test.ts")
-        mock_sprc.open_file.assert_called_once_with("C:\\Streams\\test.ts")
-
-    def test_start_stop(self, client, mock_sprc):
+    def test_stop(self, client, mock_sprc):
         from streamxpress_mcp.sprc_import import SPRC
 
         client.connect("http://localhost", 5000)
-        client.start()
-        mock_sprc.set_playout_state.assert_called_with(SPRC.STATE_PLAY)
         client.stop()
-        mock_sprc.set_playout_state.assert_called_with(SPRC.STATE_STOP)
-
-    def test_pause(self, client, mock_sprc):
-        from streamxpress_mcp.sprc_import import SPRC
-
-        client.connect("http://localhost", 5000)
-        client.pause()
-        mock_sprc.set_playout_state.assert_called_once_with(SPRC.STATE_PAUSE)
+        mock_sprc.set_playout_state.assert_called_once_with(SPRC.STATE_STOP)
 
     def test_get_status(self, client, mock_sprc):
         from streamxpress_mcp.sprc_import import SpRcPlayoutStatus, SpRcPlayoutInfo
@@ -139,81 +89,30 @@ class TestStreamXpressPlayout:
         assert status["burst_mode"] is True
         assert status["ext_clock"] is True
 
-    def test_get_playout_info_full_pass_through(self, client, mock_sprc):
-        """3b: get_playout_info 全量透传（CamelCase 键，杜绝字段漂移）。"""
-        from streamxpress_mcp.sprc_import import SpRcPlayoutInfo
+    def test_get_status_extra_fields(self, client, mock_sprc):
+        from streamxpress_mcp.sprc_import import SpRcPlayoutStatus, SpRcPlayoutInfo
 
+        mock_sprc.get_playout_status.return_value = SpRcPlayoutStatus(
+            PosRel=0.5, NumWraps=0, FifoLoad=42, NumErrors=1, TotalMemLoad=1024)
         mock_sprc.get_playout_info.return_value = SpRcPlayoutInfo(
             PlayoutState=1, Filename="test.ts", TsRate=25_000_000, PlayoutRate=25_000_000,
             BurstMode=False, ExtClock=False, FileCanBeRead=True,
             FileOffsetEnd=0, FileOffsetStart=0, FilePlayedBytes=0,
             FileRateEst=0, FileSize=1024, FileType=0,
             LoopBeginRel=0.0, LoopEndRel=0.0, LoopFlags=3,
-            Remux=False, SymRate=0,
+            Remux=False, SymRate=27_500_000,
             TimeLoopBegin=0, TimeLoopEnd=0, TimeOffset=0,
             TpSize=188, TxPolarity=0)
 
         client.connect("http://localhost", 5000)
-        info = client.get_playout_info()
-        assert info["FileCanBeRead"] is True
-        assert info["FileSize"] == 1024
-        assert info["LoopFlags"] == 3
-        assert info["TpSize"] == 188
-
-class TestStreamXpressParams:
-    def test_set_rate(self, client, mock_sprc):
-        client.connect("http://localhost", 5000)
-        client.set_rate(25_000_000)
-        mock_sprc.set_ts_rate.assert_called_once_with(25_000_000)
-
-    def test_set_tsoip_params_udp(self, client, mock_sprc):
-        from streamxpress_mcp.sprc_import import DTAPI
-
-        client.connect("http://localhost", 5000)
-        client.set_tsoip_params(
-            dest_ip="239.1.1.1", dest_port=1234, num_tp_per_ip=7, protocol="UDP", ttl=64
-        )
-        call_args = mock_sprc.set_tsiop_pars.call_args[0][0]
-        assert call_args.Ip == bytes([239, 1, 1, 1])
-        assert call_args.Port == 1234
-        assert call_args.Protocol == DTAPI.PROTO_UDP
-
-    def test_set_rf_params(self, client, mock_sprc):
-        client.connect("http://localhost", 5000)
-        client.set_rf_params(500_000_000, -37.5)
-        call_args = mock_sprc.set_rf_pars.call_args[0][0]
-        assert call_args.Frequency == 500_000_000
-        assert call_args.Level == -37.5
-
-    def test_set_rf_params_preserves_flags(self, client, mock_sprc):
-        """1: 未显式指定的标志必须保持服务器现值，不得被清零。"""
-        from streamxpress_mcp.sprc_import import SpRcRfPars
-
-        mock_sprc.get_rf_pars.return_value = SpRcRfPars(
-            Frequency=100, Level=-10.0, SpecInv=True, CW=True, RfEnabledOnStop=True)
-        client.connect("http://localhost", 5000)
-        client.set_rf_params(500_000_000, -30.0)
-        pars = mock_sprc.set_rf_pars.call_args[0][0]
-        assert pars.Frequency == 500_000_000 and pars.Level == -30.0
-        assert pars.SpecInv is True and pars.CW is True and pars.RfEnabledOnStop is True
-
-    def test_set_rf_params_explicit_flags_override(self, client, mock_sprc):
-        """1: 显式传入的标志必须生效，且不额外读取。"""
-        client.connect("http://localhost", 5000)
-        client.set_rf_params(500_000_000, -30.0,
-                             spec_inv=True, cw=False, rf_enabled_on_stop=True)
-        pars = mock_sprc.set_rf_pars.call_args[0][0]
-        assert pars.SpecInv is True and pars.CW is False and pars.RfEnabledOnStop is True
-        mock_sprc.get_rf_pars.assert_not_called()   # 全部显式 => 不做 RMW 读
-
-    def test_set_asi_params(self, client, mock_sprc):
-        from streamxpress_mcp.sprc_import import DTAPI
-
-        client.connect("http://localhost", 5000)
-        client.set_asi_params(remux=True, playout_rate=20_000_000, tx_mode=DTAPI.TXMODE_188)
-        call_args = mock_sprc.set_asi_pars.call_args[0][0]
-        assert call_args.Remux is True
-        assert call_args.PlayoutRate == 20_000_000
+        status = client.get_status()
+        assert status["fifo_load"] == 42
+        assert status["num_errors"] == 1
+        assert status["playout_rate"] == 25_000_000
+        assert status["sym_rate"] == 27_500_000
+        assert status["loop_flags"] == 3
+        assert status["file_size"] == 1024
+        assert status["tp_size"] == 188
 
 
 class TestServerConnectTool:
@@ -238,6 +137,17 @@ class TestServerConnectTool:
         result = disconnect()
         assert result["status"] == "disconnected"
         mock_client.disconnect.assert_called_once()
+
+    @patch("streamxpress_mcp.server.get_client")
+    def test_disconnect_tool_surfaces_warning(self, mock_get_client):
+        mock_client = MagicMock()
+        mock_client.disconnect.side_effect = RuntimeError(
+            "failed to close StreamXpress session: boom")
+        mock_get_client.return_value = mock_client
+        from streamxpress_mcp.server import disconnect
+        result = disconnect()
+        assert result["status"] == "disconnected"
+        assert "failed to close" in result["warning"]
 
 
 class TestServerPlayoutTools:
@@ -332,531 +242,16 @@ class TestGetClientWsdl:
         assert sprc._wsdl_template is None
 
 
-class TestSerializationHelpers:
-    def test_jsonable_converts_bytes_to_list(self):
-        from streamxpress_mcp.client import _jsonable
-
-        assert _jsonable(b"\x01\x02") == [1, 2]
-
-    def test_jsonable_recurses_into_lists_and_dicts(self):
-        from streamxpress_mcp.client import _jsonable
-
-        assert _jsonable({"a": [b"\x00", {"b": b"\xff"}]}) == {"a": [[0], {"b": [255]}]}
-
-    def test_to_dict_flattens_nested_dataclass(self):
-        from streamxpress_mcp.client import _to_dict
-        from streamxpress_mcp.sprc_import import SpRcTsoipPars, DTAPI
-
-        pars = SpRcTsoipPars(
-            TxMode=DTAPI.TXMODE_188, Ip=b"\xef\x01\x02\x03", Port=1234,
-            EnaFailover=False, Ip2=bytes(4), Port2=0, TimeToLive=64,
-            NumTpPerIp=7, Protocol=DTAPI.PROTO_UDP, DiffServ=0,
-            FecMode=DTAPI.FEC_DISABLE, FecNumRows=0, FecNumCols=0,
-        )
-        assert _to_dict(pars)["Ip"] == [239, 1, 2, 3]
-
-    def test_sprc_import_exports_new_types(self):
-        from streamxpress_mcp.sprc_import import (
-            SpRcVersion, SpRcCmmbPars, SpRcCmPars, SpRcCmPath, SpRcDvbT2Group,
-            SpRcDvbT2Pars, SpRcHwNoisePars, SpRcIsdbtPars, SpRcIsdbtLayerPars,
-            SpRcPlayoutSfnPars, SpRcSpiPars, SpRcSubLoopPars, SpRcDateTime,
-            SpRcTdtAdaptPars, SpRcTsgPars, SpRcSfnStatus,
-        )
-
-        assert SpRcVersion(MajorVersion=1, MinorVersion=2, BugFixVersion=3, BuildNumber=4).MajorVersion == 1
-        assert SpRcCmmbPars(Bandwidth=0, AreaId=1, TxId=2).AreaId == 1
-
-    def test_parse_ip_valid(self):
-        from streamxpress_mcp.client import _parse_ip
-
-        assert _parse_ip("239.1.1.1") == bytes([239, 1, 1, 1])
-
-    def test_parse_ip_rejects_wrong_segment_count(self):
-        import pytest
-
-        from streamxpress_mcp.client import _parse_ip
-
-        with pytest.raises(ValueError, match="invalid IPv4"):
-            _parse_ip("1.2.3")
-
-    def test_parse_ip_rejects_non_numeric_octet(self):
-        import pytest
-
-        from streamxpress_mcp.client import _parse_ip
-
-        with pytest.raises(ValueError, match="invalid IPv4"):
-            _parse_ip("1.2.x.4")
-
-
-class TestClientSessionVersion:
-    def test_get_remote_version(self, client, mock_sprc):
-        from streamxpress_mcp.sprc_import import SpRcVersion
-
-        mock_sprc.get_remote_version.return_value = SpRcVersion(
-            MajorVersion=1, MinorVersion=12, BugFixVersion=0, BuildNumber=21)
-        client.connect("http://localhost", 5000)
-        assert client.get_remote_version() == {
-            "MajorVersion": 1, "MinorVersion": 12, "BugFixVersion": 0, "BuildNumber": 21}
-
-    def test_get_remote_dtapi_version(self, client, mock_sprc):
-        from streamxpress_mcp.sprc_import import SpRcVersion
-
-        mock_sprc.get_remote_dtapi_version.return_value = SpRcVersion(
-            MajorVersion=6, MinorVersion=3, BugFixVersion=2, BuildNumber=224)
-        client.connect("http://localhost", 5000)
-        assert client.get_remote_dtapi_version()["MinorVersion"] == 3
-
-    def test_get_app_info(self, client, mock_sprc):
-        from streamxpress_mcp.sprc_import import SpRcVersion
-
-        mock_sprc.get_app_info.return_value = (
-            "StreamXpress",
-            SpRcVersion(MajorVersion=3, MinorVersion=31, BugFixVersion=0, BuildNumber=772),
-        )
-        client.connect("http://localhost", 5000)
-        assert client.get_app_info() == {
-            "app_name": "StreamXpress",
-            "version": {"MajorVersion": 3, "MinorVersion": 31, "BugFixVersion": 0, "BuildNumber": 772},
-        }
-
-    def test_show_window(self, client, mock_sprc):
-        client.connect("http://localhost", 5000)
-        client.show_window(True)
-        mock_sprc.show_window.assert_called_once_with(True)
-
-    def test_clear_errors(self, client, mock_sprc):
-        client.connect("http://localhost", 5000)
-        client.clear_errors()
-        mock_sprc.clear_errors.assert_called_once()
-
-
-class TestClientParameterGetters:
-    def _connect(self, client):
-        client.connect("http://localhost", 5000)
-
-    def test_get_asi_pars(self, client, mock_sprc):
-        from streamxpress_mcp.sprc_import import SpRcAsiPars, DTAPI
-
-        mock_sprc.get_asi_pars.return_value = SpRcAsiPars(
-            Remux=True, PlayoutRate=20_000_000, BurstMode=False,
-            TxMode=DTAPI.TXMODE_188, Polarity=DTAPI.TXPOL_NORMAL)
-        self._connect(client)
-        result = client.get_asi_pars()
-        assert result["Remux"] is True
-        assert result["PlayoutRate"] == 20_000_000
-
-    def test_get_tsoip_pars_converts_bytes(self, client, mock_sprc):
-        from streamxpress_mcp.sprc_import import SpRcTsoipPars, DTAPI
-
-        mock_sprc.get_tsoip_pars.return_value = SpRcTsoipPars(
-            TxMode=DTAPI.TXMODE_188, Ip=b"\xef\x01\x02\x03", Port=1234,
-            EnaFailover=False, Ip2=bytes(4), Port2=0, TimeToLive=64,
-            NumTpPerIp=7, Protocol=DTAPI.PROTO_UDP, DiffServ=0,
-            FecMode=DTAPI.FEC_DISABLE, FecNumRows=0, FecNumCols=0)
-        self._connect(client)
-        assert client.get_tsoip_pars()["Ip"] == [239, 1, 2, 3]
-
-    def test_get_iq_gain_returns_int(self, client, mock_sprc):
-        mock_sprc.get_iq_gain.return_value = 150
-        self._connect(client)
-        assert client.get_iq_gain() == 150
-
-    def test_get_use_nit_returns_bool(self, client, mock_sprc):
-        mock_sprc.get_use_nit.return_value = True
-        self._connect(client)
-        assert client.get_use_nit() is True
-
-
-class TestClientComplexGetters:
-    def _connect(self, client):
-        client.connect("http://localhost", 5000)
-
-    def test_get_channel_modelling_pars_nested_paths(self, client, mock_sprc):
-        from streamxpress_mcp.sprc_import import SpRcCmPars, SpRcCmPath
-
-        mock_sprc.get_channel_modelling_pars.return_value = SpRcCmPars(
-            CmEnable=True, AwgnEnable=True, Snr=20.0, PathsEnable=True,
-            Paths=[SpRcCmPath(Type=0, Attenuation=-10.0, Delay=1.5, Phase=90.0, Doppler=0.0)])
-        self._connect(client)
-        result = client.get_channel_modelling_pars()
-        assert result["CmEnable"] is True
-        assert result["Paths"][0]["Delay"] == 1.5
-
-    def test_get_isdb_t_pars_pid2layer(self, client, mock_sprc):
-        from streamxpress_mcp.sprc_import import (
-            SpRcIsdbtPars, SpRcIsdbtLayerPars, DTAPI)
-
-        mock_sprc.get_isdb_t_pars.return_value = SpRcIsdbtPars(
-            DoMux=True, BType=0, Mode=3, Guard=2, PartialRx=0, Emergency=0,
-            IipPid=0,
-            LayerPars=[SpRcIsdbtLayerPars(NumSegments=13, Modulation=DTAPI.ISDBT_MOD_QAM64,
-                                          CodeRate=0, TimeInterleave=0)],
-            Pid2Layer={100: 1}, LayerOther=0, ParXtra0=0)
-        self._connect(client)
-        result = client.get_isdb_t_pars()
-        assert result["Pid2Layer"] == {100: 1}
-        assert result["LayerPars"][0]["NumSegments"] == 13
-
-    def test_get_tdt_adapt_pars_nested_datetime(self, client, mock_sprc):
-        from streamxpress_mcp.sprc_import import SpRcTdtAdaptPars, SpRcDateTime, SPRC
-
-        mock_sprc.get_tdt_adapt_pars.return_value = SpRcTdtAdaptPars(
-            TdtAdaptMode=SPRC.TDT_ADAPT_USE_SPECIFIED,
-            TdtDateTime=SpRcDateTime(Year=2026, Month=8, Day=8, Hour=12, Minute=0, Second=0))
-        self._connect(client)
-        result = client.get_tdt_adapt_pars()
-        assert result["TdtDateTime"]["Year"] == 2026
-        assert result["TdtAdaptMode"] == SPRC.TDT_ADAPT_USE_SPECIFIED
-
-    def test_get_sfn_status(self, client, mock_sprc):
-        from streamxpress_mcp.sprc_import import SpRcSfnStatus, SPRC
-
-        mock_sprc.get_sfn_status.return_value = SpRcSfnStatus(
-            GpsStatus=SPRC.GPS_STATUS_10MHZ_1PPS_SYNC, GpsTime=500_000_000,
-            SfnMode=SPRC.SFN_MODE_1_PPS, SfnStatus=SPRC.SFN_STATUS_IN_SYNC)
-        self._connect(client)
-        assert client.get_sfn_status()["SfnStatus"] == SPRC.SFN_STATUS_IN_SYNC
-
-
-class TestClientFileSettings:
-    def _connect(self, client):
-        client.connect("http://localhost", 5000)
-
-    def test_open_channel_modelling_file(self, client, mock_sprc):
-        self._connect(client)
-        client.open_channel_modelling_file("C:\\cm\\model.chmx")
-        mock_sprc.open_channel_modelling_file.assert_called_once_with("C:\\cm\\model.chmx")
-
-    def test_save_settings(self, client, mock_sprc):
-        self._connect(client)
-        client.save_settings("C:\\cfg\\settings.xml")
-        mock_sprc.save_settings.assert_called_once_with("C:\\cfg\\settings.xml")
-
-    def test_normalise(self, client, mock_sprc):
-        self._connect(client)
-        client.normalise()
-        mock_sprc.normalise.assert_called_once()
-
-
-class TestClientScalarSetters:
-    def _connect(self, client):
-        client.connect("http://localhost", 5000)
-
-    def test_set_loop_flags(self, client, mock_sprc):
-        from streamxpress_mcp.sprc_import import SPRC
-
-        self._connect(client)
-        client.set_loop_flags(SPRC.LOOP_CC | SPRC.LOOP_PCR | SPRC.LOOP_WRAP)
-        mock_sprc.set_loop_flags.assert_called_once_with(SPRC.LOOP_CC | SPRC.LOOP_PCR | SPRC.LOOP_WRAP)
-
-    def test_set_remux(self, client, mock_sprc):
-        self._connect(client)
-        client.set_remux(True)
-        mock_sprc.set_remux.assert_called_once_with(True)
-
-    def test_set_sfn_mode(self, client, mock_sprc):
-        from streamxpress_mcp.sprc_import import SPRC
-
-        self._connect(client)
-        client.set_sfn_mode(SPRC.SFN_MODE_1_PPS)
-        mock_sprc.set_sfn_mode.assert_called_once_with(SPRC.SFN_MODE_1_PPS)
-
-    def test_set_sub_loop_pars(self, client, mock_sprc):
-        self._connect(client)
-        client.set_sub_loop_pars(use_subloop=True, loop_begin_rel=0.25, loop_end_rel=0.75)
-        call_args = mock_sprc.set_sub_loop_pars.call_args[0][0]
-        assert call_args.UseSubLoop is True
-        assert call_args.LoopBeginRel == 0.25
-        assert call_args.LoopEndRel == 0.75
-
-    def test_select_dta_plus(self, client, mock_sprc):
-        self._connect(client)
-        client.select_dta_plus(True, 217400002)
-        mock_sprc.select_dta_plus.assert_called_once_with(True, 217400002)
-
-
-class TestClientStructSetters:
-    def _connect(self, client):
-        client.connect("http://localhost", 5000)
-
-    def test_set_cmmb_pars(self, client, mock_sprc):
-        self._connect(client)
-        client.set_cmmb_pars({"Bandwidth": 0, "AreaId": 3, "TxId": 200})
-        call_args = mock_sprc.set_cmmb_pars.call_args[0][0]
-        assert call_args.Bandwidth == 0
-        assert call_args.AreaId == 3
-        assert call_args.TxId == 200
-
-    def test_set_hw_noise_pars(self, client, mock_sprc):
-        self._connect(client)
-        client.set_hw_noise_pars({"SnrOn": True, "Snr": 25.0})
-        call_args = mock_sprc.set_hw_noise_pars.call_args[0][0]
-        assert call_args.SnrOn is True
-        assert call_args.Snr == 25.0
-
-    def test_set_tsg_pars(self, client, mock_sprc):
-        from streamxpress_mcp.sprc_import import SPRC
-
-        self._connect(client)
-        client.set_tsg_pars({"Type": SPRC.TSG_TYPE_PRBS15, "Pid": 100, "VidStd": 0})
-        call_args = mock_sprc.set_tsg_pars.call_args[0][0]
-        assert call_args.Type == SPRC.TSG_TYPE_PRBS15
-        assert call_args.Pid == 100
-
-    def test_set_dvb_t2_group(self, client, mock_sprc):
-        self._connect(client)
-        client.set_dvb_t2_group({"GroupName": "VV1xx", "GroupRefName": "VV100"})
-        call_args = mock_sprc.set_dvb_t2_group.call_args[0][0]
-        assert call_args.GroupName == "VV1xx"
-        assert call_args.GroupRefName == "VV100"
-
-
-class TestClientComplexSetters:
-    def _connect(self, client):
-        client.connect("http://localhost", 5000)
-
-    def test_set_mod_pars(self, client, mock_sprc):
-        from streamxpress_mcp.sprc_import import DTAPI
-
-        self._connect(client)
-        client.set_mod_pars({"ModType": DTAPI.MOD_DVBS2, "ParXtra0": 0, "ParXtra1": 0, "ParXtra2": 0, "SymRate": 27_500_000})
-        call_args = mock_sprc.set_mod_pars.call_args[0][0]
-        assert call_args.ModType == DTAPI.MOD_DVBS2
-        assert call_args.SymRate == 27_500_000
-
-    def test_set_channel_modelling_pars_with_paths(self, client, mock_sprc):
-        from streamxpress_mcp.sprc_import import SPRC
-
-        self._connect(client)
-        client.set_channel_modelling_pars({
-            "CmEnable": True, "AwgnEnable": True, "Snr": 20.0, "PathsEnable": True,
-            "Paths": [{"Type": SPRC.CONSTANT_DELAY, "Attenuation": -10.0,
-                       "Delay": 1.5, "Phase": 90.0, "Doppler": 0.0}],
-        })
-        call_args = mock_sprc.set_channel_modelling_pars.call_args[0][0]
-        assert call_args.CmEnable is True
-        assert call_args.Paths[0].Delay == 1.5
-
-    def test_set_tdt_adapt_pars_nested_datetime(self, client, mock_sprc):
-        from streamxpress_mcp.sprc_import import SPRC
-
-        self._connect(client)
-        client.set_tdt_adapt_pars({
-            "TdtAdaptMode": SPRC.TDT_ADAPT_USE_SPECIFIED,
-            "TdtDateTime": {"Year": 2026, "Month": 8, "Day": 8, "Hour": 12, "Minute": 0, "Second": 0},
-        })
-        call_args = mock_sprc.set_tdt_adapt_pars.call_args[0][0]
-        assert call_args.TdtAdaptMode == SPRC.TDT_ADAPT_USE_SPECIFIED
-        assert call_args.TdtDateTime.Year == 2026
-
-    def test_set_playout_state_sfn(self, client, mock_sprc):
-        from streamxpress_mcp.sprc_import import SPRC
-
-        self._connect(client)
-        client.set_playout_state_sfn(SPRC.STATE_PLAY, 500_000_000)
-        call_args = mock_sprc.set_playout_state_sfn.call_args[0][0]
-        assert call_args.PlayoutState == SPRC.STATE_PLAY
-        assert call_args.SfnStartTime == 500_000_000
-
-    def test_set_isdb_t_pars(self, client, mock_sprc):
-        from streamxpress_mcp.sprc_import import DTAPI
-
-        self._connect(client)
-        client.set_isdb_t_pars({
-            "DoMux": True, "BType": 0, "Mode": 3, "Guard": 2, "PartialRx": 0,
-            "Emergency": 0, "IipPid": 0,
-            "LayerPars": [{"NumSegments": 13, "Modulation": DTAPI.ISDBT_MOD_QAM64,
-                           "CodeRate": 0, "TimeInterleave": 0}],
-            "Pid2Layer": {100: 1}, "LayerOther": 0, "ParXtra0": 0,
-        })
-        call_args = mock_sprc.set_isdb_t_pars.call_args[0][0]
-        assert call_args.Pid2Layer == {100: 1}
-        assert call_args.LayerPars[0].NumSegments == 13
-
-    def test_set_isdb_t_pars_string_pid_keys(self, client, mock_sprc):
-        """MCP JSON 透传后 Pid2Layer 键是 str，必须转回 int 才能进 xsd:int 字段。"""
-        self._connect(client)
-        client.set_isdb_t_pars({
-            "DoMux": True, "BType": 0, "Mode": 3, "Guard": 2, "PartialRx": 0,
-            "Emergency": 0, "IipPid": 0,
-            "LayerPars": [], "Pid2Layer": {"100": 1}, "LayerOther": 0, "ParXtra0": 0,
-        })
-        call_args = mock_sprc.set_isdb_t_pars.call_args[0][0]
-        assert call_args.Pid2Layer == {100: 1}
-
-    def test_set_isdb_t_pars_missing_pid2layer(self, client, mock_sprc):
-        """Pid2Layer 缺失或为 None 时应回退为空 dict，而不是崩溃。"""
-        self._connect(client)
-        client.set_isdb_t_pars({
-            "DoMux": True, "BType": 0, "Mode": 3, "Guard": 2, "PartialRx": 0,
-            "Emergency": 0, "IipPid": 0,
-            "LayerPars": [], "Pid2Layer": None, "LayerOther": 0, "ParXtra0": 0,
-        })
-        call_args = mock_sprc.set_isdb_t_pars.call_args[0][0]
-        assert call_args.Pid2Layer == {}
-
-    def test_set_dvb_t2_pars(self, client, mock_sprc):
-        from streamxpress_mcp.sprc_import import SPRC, DTAPI
-
-        self._connect(client)
-        client.set_dvb_t2_pars({
-            "T2Version": 1, "Bandwidth": DTAPI.DVBT2_8MHZ, "FftMode": DTAPI.DVBT2_FFT_8K,
-            "Miso": DTAPI.DVBT2_MISO_OFF, "GuardInterval": DTAPI.DVBT2_GI_1_32,
-            "Papr": DTAPI.DVBT2_PAPR_NONE, "BwtExt": 0, "PilotPattern": 4,
-            "NumT2Frames": 2, "NumDataSyms": 60, "L1Modulation": 1,
-            "FefEnable": False, "FefType": 0, "FefLength": 0, "FefS1": 2, "FefS2": 1,
-            "FefInterval": 1, "FefSignal": 0, "CellId": 0, "NetworkId": 0,
-            "T2SystemId": 0, "Frequency": 500_000_000,
-            "Hem": False, "Npd": False, "IssyEnabled": False, "Id": 0, "GroupId": 0,
-            "Type": 0, "CodeRate": DTAPI.DVBT2_COD_3_4, "Modulation": 2,
-            "Rotation": False, "FecType": 0, "TimeIlLength": 0, "TimeIlType": 0,
-            "InBandFlag": False, "NumBlocks": 0,
-            "FollowMode": SPRC.T2_FOLLOW_OFF,
-        })
-        call_args = mock_sprc.set_dvb_t2_pars.call_args[0][0]
-        assert call_args.Bandwidth == DTAPI.DVBT2_8MHZ
-        assert call_args.Frequency == 500_000_000
-
-
-class TestWaitForCondition:
-    def test_client_wait_for_condition(self, client, mock_sprc):
-        from streamxpress_mcp.sprc_import import SPRC
-
-        client.connect("http://localhost", 5000)
-        client.wait_for_condition(SPRC.COND_STOPPED, 10_000)
-        mock_sprc.wait_for_condition.assert_called_once_with(SPRC.COND_STOPPED, 10_000)
-
-class TestEnhancedParams:
-    def test_set_tsoip_params_failover(self, client, mock_sprc):
-        client.connect("http://localhost", 5000)
-        client.set_tsoip_params(
-            dest_ip="239.1.1.1", dest_port=1234, failover=True,
-            dest_ip2="239.1.1.2", dest_port2=1235, diff_serv=46)
-        call_args = mock_sprc.set_tsiop_pars.call_args[0][0]
-        assert call_args.EnaFailover is True
-        assert call_args.Ip2 == bytes([239, 1, 1, 2])
-        assert call_args.Port2 == 1235
-        assert call_args.DiffServ == 46
-
-    def test_set_asi_params_burst_polarity(self, client, mock_sprc):
-        from streamxpress_mcp.sprc_import import DTAPI
-
-        client.connect("http://localhost", 5000)
-        client.set_asi_params(
-            burst_mode=True, polarity=DTAPI.TXPOL_INVERTED, tx_mode=DTAPI.TXMODE_204)
-        call_args = mock_sprc.set_asi_pars.call_args[0][0]
-        assert call_args.BurstMode is True
-        assert call_args.Polarity == DTAPI.TXPOL_INVERTED
-        assert call_args.TxMode == DTAPI.TXMODE_204  # R3: 构造出的结构体上钉住 TxMode
-
-    def test_get_status_extra_fields(self, client, mock_sprc):
-        from streamxpress_mcp.sprc_import import SpRcPlayoutStatus, SpRcPlayoutInfo
-
-        mock_sprc.get_playout_status.return_value = SpRcPlayoutStatus(
-            PosRel=0.5, NumWraps=0, FifoLoad=42, NumErrors=1, TotalMemLoad=1024)
-        mock_sprc.get_playout_info.return_value = SpRcPlayoutInfo(
-            PlayoutState=1, Filename="test.ts", TsRate=25_000_000, PlayoutRate=25_000_000,
-            BurstMode=False, ExtClock=False, FileCanBeRead=True,
-            FileOffsetEnd=0, FileOffsetStart=0, FilePlayedBytes=0,
-            FileRateEst=0, FileSize=1024, FileType=0,
-            LoopBeginRel=0.0, LoopEndRel=0.0, LoopFlags=3,
-            Remux=False, SymRate=27_500_000,
-            TimeLoopBegin=0, TimeLoopEnd=0, TimeOffset=0,
-            TpSize=188, TxPolarity=0)
-
-        client.connect("http://localhost", 5000)
-        status = client.get_status()
-        assert status["fifo_load"] == 42
-        assert status["num_errors"] == 1
-        assert status["playout_rate"] == 25_000_000
-        assert status["sym_rate"] == 27_500_000
-        assert status["loop_flags"] == 3
-        assert status["file_size"] == 1024
-        assert status["tp_size"] == 188
-
-    def test_set_tsoip_params_rejects_invalid_protocol(self, client, mock_sprc):
-        client.connect("http://localhost", 5000)
-        with pytest.raises(ValueError, match="invalid protocol"):
-            client.set_tsoip_params(dest_ip="239.1.1.1", dest_port=1234, protocol="UPD")
-
-    def test_set_tsoip_params_lowercase_protocol(self, client, mock_sprc):
-        """R5.1: protocol 大小写不敏感（.upper() 归一化）。"""
-        from streamxpress_mcp.sprc_import import DTAPI
-
-        client.connect("http://localhost", 5000)
-        client.set_tsoip_params(dest_ip="239.1.1.1", dest_port=1234, protocol="udp")
-        call_args = mock_sprc.set_tsiop_pars.call_args[0][0]
-        assert call_args.Protocol == DTAPI.PROTO_UDP
-
-    def test_set_tsoip_params_fec_and_rtp_and_txmode(self, client, mock_sprc):
-        """T2: RTP 分支、FEC 推导、TxMode 传递。"""
-        from streamxpress_mcp.sprc_import import DTAPI
-
-        client.connect("http://localhost", 5000)
-        client.set_tsoip_params(
-            dest_ip="239.1.1.1", dest_port=1234, protocol="RTP",
-            fec_rows=5, fec_cols=4, tx_mode=DTAPI.TXMODE_204)
-        call_args = mock_sprc.set_tsiop_pars.call_args[0][0]
-        assert call_args.Protocol == DTAPI.PROTO_RTP
-        assert call_args.FecMode == DTAPI.FEC_2D
-        assert call_args.FecNumRows == 5
-        assert call_args.FecNumCols == 4
-        assert call_args.TxMode == DTAPI.TXMODE_204
-
-    def test_set_tsoip_params_partial_fec_disables(self, client, mock_sprc):
-        """R2: rows 或 cols 任一为 0 必须禁用 FEC（守卫是 or 不是 and）。"""
-        from streamxpress_mcp.sprc_import import DTAPI
-
-        client.connect("http://localhost", 5000)
-        for rows, cols in [(4, 0), (0, 4), (0, 0)]:
-            mock_sprc.set_tsiop_pars.reset_mock()
-            client.set_tsoip_params(dest_ip="239.1.1.1", dest_port=1234,
-                                    fec_rows=rows, fec_cols=cols)
-            pars = mock_sprc.set_tsiop_pars.call_args[0][0]
-            assert pars.FecMode == DTAPI.FEC_DISABLE, f"rows={rows} cols={cols}"
-
-    def test_set_tsoip_params_ttl_and_num_tp(self, client, mock_sprc):
-        """R2: ttl / num_tp_per_ip 必须落在正确的结构体字段（防字段互换）。"""
-        client.connect("http://localhost", 5000)
-        # 用非默认值 7/3，避免与默认 64/7 重合成为等价变异体
-        client.set_tsoip_params(dest_ip="239.1.1.1", dest_port=1234,
-                                ttl=7, num_tp_per_ip=3)
-        pars = mock_sprc.set_tsiop_pars.call_args[0][0]
-        assert pars.TimeToLive == 7
-        assert pars.NumTpPerIp == 3
-
-    def test_set_channel_modelling_pars_paths_none(self, client, mock_sprc):
-        """JSON null 表达"无路径"时应回退为空列表而非崩溃。"""
-        client.connect("http://localhost", 5000)
-        client.set_channel_modelling_pars({
-            "CmEnable": True, "AwgnEnable": True, "Snr": 20.0, "PathsEnable": False,
-            "Paths": None,
-        })
-        call_args = mock_sprc.set_channel_modelling_pars.call_args[0][0]
-        assert call_args.Paths == []
-
-    def test_set_isdb_t_pars_duplicate_pid_keys(self, client, mock_sprc):
-        """Pid2Layer 中同一 PID 重复出现应报错而非静默覆盖。"""
-        client.connect("http://localhost", 5000)
-        with pytest.raises(ValueError, match="duplicate PID"):
-            client.set_isdb_t_pars({
-                "DoMux": True, "BType": 0, "Mode": 3, "Guard": 2, "PartialRx": 0,
-                "Emergency": 0, "IipPid": 0,
-                "LayerPars": [], "Pid2Layer": {"100": 1, 100: 2},
-                "LayerOther": 0, "ParXtra0": 0,
-            })
-
-
 class TestErrorBoundary:
     """Wrapper 错误转换边界：SpRcException 可诊断化、传输故障断连、disconnect 暴露失败。"""
 
     def test_sprc_exception_becomes_diagnosable_runtime_error(self, client, mock_sprc):
         from streamxpress_mcp.sprc_import import SpRcException, SPRC_RESULT
 
-        mock_sprc.scan_ports.side_effect = SpRcException(SPRC_RESULT.E_NO_LICK)
+        mock_sprc.get_playout_status.side_effect = SpRcException(SPRC_RESULT.E_NO_LICK)
         client.connect("http://localhost", 5000)
         with pytest.raises(RuntimeError, match="E_NO_LICK") as exc_info:
-            client.scan_ports()
+            client.get_status()
         # F2: str(e) 为空时兜底 "no detail"，尾部不留空白
         assert str(exc_info.value).endswith("no detail")
         # R5.2: 错误码数值也被钉住（E_NO_LICK = 0x2000 + 11 = 8203）
@@ -867,25 +262,35 @@ class TestErrorBoundary:
         import threading
         import time
 
+        from streamxpress_mcp.sprc_import import SpRcPlayoutStatus, SpRcPlayoutInfo
+
         started = threading.Event()
 
-        def slow(cond, timeout):
+        def slow():
             started.set()
             time.sleep(1.5)  # R5.3: 放宽慢调用时长，避免 CI 负载下 flake
+            return SpRcPlayoutStatus(PosRel=0.5, NumWraps=0, FifoLoad=0, NumErrors=0, TotalMemLoad=0)
 
-        mock_sprc.wait_for_condition.side_effect = slow
+        mock_sprc.get_playout_status.side_effect = slow
+        mock_sprc.get_playout_info.return_value = SpRcPlayoutInfo(
+            PlayoutState=1, Filename="", TsRate=0, BurstMode=False, ExtClock=False,
+            FileCanBeRead=True, FileOffsetEnd=0, FileOffsetStart=0, FilePlayedBytes=0,
+            FileRateEst=0, FileSize=0, FileType=0, LoopBeginRel=0.0, LoopEndRel=0.0,
+            LoopFlags=0, PlayoutRate=0, Remux=False, SymRate=0, TimeLoopBegin=0,
+            TimeLoopEnd=0, TimeOffset=0, TpSize=188, TxPolarity=0)
+
         client.connect("http://localhost", 5000)
 
-        t = threading.Thread(target=lambda: client.wait_for_condition(1, -1), daemon=True)
+        t = threading.Thread(target=client.get_status, daemon=True)
         t.start()
         assert started.wait(timeout=1.0)
 
         done = threading.Event()
         threading.Thread(
-            target=lambda: (client.scan_ports(), done.set()), daemon=True
+            target=lambda: (client.stop(), done.set()), daemon=True
         ).start()
         # 在慢调用仍在进行时就应完成
-        assert done.wait(timeout=0.3), "scan_ports 被 wait_for_condition 阻塞了"
+        assert done.wait(timeout=0.3), "stop 被慢 get_status 阻塞了"
         t.join()
 
     def test_stale_failure_does_not_kill_new_session(self):
@@ -919,7 +324,7 @@ class TestErrorBoundary:
             client.get_status()
         assert client._connected is False
         with pytest.raises(RuntimeError, match="not connected"):
-            client.scan_ports()
+            client.stop()
 
     def test_oserror_marks_session_stale(self, client, mock_sprc):
         mock_sprc.get_playout_status.side_effect = OSError("network unreachable")
@@ -937,59 +342,86 @@ class TestErrorBoundary:
         assert client._connected is False
         assert client._sprc is None
 
+    def test_call_requires_connection(self, client):
+        with pytest.raises(RuntimeError, match="not connected"):
+            client.stop()
+
+
+class TestServerPlayTool:
+    @patch("streamxpress_mcp.server.launch_streamxpress")
+    @patch("streamxpress_mcp.server.load_config")
     @patch("streamxpress_mcp.server.get_client")
-    def test_disconnect_tool_surfaces_warning(self, mock_get_client):
+    def test_play_tool_forwards_to_client(self, mock_get_client, mock_load, mock_launch):
+        from streamxpress_mcp.config import StreamXpressConfig
+        mock_load.return_value = StreamXpressConfig()
         mock_client = MagicMock()
-        mock_client.disconnect.side_effect = RuntimeError(
-            "failed to close StreamXpress session: boom")
+        mock_client.connected = True
+        mock_client.play.return_value = {
+            "status": "playing", "settings_xml": "a.xml", "stream": "a.ts",
+            "serial": 315002019, "port": 1,
+        }
         mock_get_client.return_value = mock_client
-        from streamxpress_mcp.server import disconnect
-        result = disconnect()
-        assert result["status"] == "disconnected"
-        assert "failed to close" in result["warning"]
+        from streamxpress_mcp.server import play
+        result = play("a.xml", "a.ts", loop=True)
+        mock_launch.assert_not_called()
+        mock_client.play.assert_called_once_with(
+            settings_xml="a.xml", stream="a.ts", loop=True,
+        )
+        assert result["status"] == "playing"
+
+    @patch("streamxpress_mcp.server.launch_streamxpress")
+    @patch("streamxpress_mcp.server.load_config")
+    @patch("streamxpress_mcp.server.get_client")
+    def test_play_auto_connects_without_launch_if_already_listening(
+        self, mock_get_client, mock_load, mock_launch
+    ):
+        from streamxpress_mcp.config import StreamXpressConfig
+        mock_load.return_value = StreamXpressConfig(rc_port=5000)
+        mock_client = MagicMock()
+        mock_client.connected = False
+        mock_client.play.return_value = {
+            "status": "playing", "settings_xml": "a.xml", "stream": "a.ts",
+            "serial": 1, "port": 1,
+        }
+        mock_get_client.return_value = mock_client
+        from streamxpress_mcp.server import play
+        play("a.xml", "a.ts")
+        mock_client.connect.assert_called_once_with("http://localhost", 5000)
+        mock_launch.assert_not_called()
+
+    @patch("streamxpress_mcp.server.launch_streamxpress")
+    @patch("streamxpress_mcp.server.load_config")
+    @patch("streamxpress_mcp.server.get_client")
+    def test_play_launches_when_connect_fails(self, mock_get_client, mock_load, mock_launch):
+        from streamxpress_mcp.config import StreamXpressConfig
+        mock_load.return_value = StreamXpressConfig(rc_port=5000)
+        mock_launch.return_value = {"ok": True, "pid": 1, "port": 5000, "ready": True}
+        mock_client = MagicMock()
+        mock_client.connected = False
+        mock_client.connect.side_effect = [RuntimeError("refused"), None]
+        mock_client.play.return_value = {
+            "status": "playing", "settings_xml": "a.xml", "stream": "a.ts",
+            "serial": 1, "port": 1,
+        }
+        mock_get_client.return_value = mock_client
+        from streamxpress_mcp.server import play
+        play("a.xml", "a.ts")
+        mock_launch.assert_called_once()
+        assert mock_client.connect.call_count == 2
 
 
-class TestJsonBoundary:
-    """Getter 输出必须能通过严格 JSON 序列化（allow_nan=False）。"""
-
-    def test_jsonable_rejects_nan(self):
-        from streamxpress_mcp.client import _jsonable
-
-        with pytest.raises(ValueError, match="non-finite"):
-            _jsonable(float("nan"))
-
-    def test_jsonable_rejects_inf(self):
-        from streamxpress_mcp.client import _jsonable
-
-        with pytest.raises(ValueError, match="non-finite"):
-            _jsonable(float("inf"))
-
-    def test_getter_outputs_pass_strict_json(self, client, mock_sprc):
-        import json
-
-        from streamxpress_mcp.sprc_import import SpRcRfPars, SpRcSfnStatus, SpRcCmPars
-
-        mock_sprc.get_rf_pars.return_value = SpRcRfPars(Frequency=500_000_000, Level=-37.5)
-        mock_sprc.get_sfn_status.return_value = SpRcSfnStatus(
-            GpsStatus=0, GpsTime=500_000_000, SfnMode=0, SfnStatus=1)
-        mock_sprc.get_channel_modelling_pars.return_value = SpRcCmPars(
-            CmEnable=True, AwgnEnable=True, Snr=20.0, PathsEnable=False, Paths=[])
-        client.connect("http://localhost", 5000)
-        for result in (client.get_rf_pars(), client.get_sfn_status(),
-                       client.get_channel_modelling_pars()):
-            json.dumps(result, allow_nan=False)  # 不应抛 ValueError
-
-def _sample_port(serial=315002019, type_number=315, port=1, in_use=0):
-    from streamxpress_mcp.sprc_import import SpRcPortDesc
-    return SpRcPortDesc(
-        Serial=serial, TypeNumber=type_number, Ip=bytes(4), Mac=bytes(6),
-        FirmwareVersion=100, FirmwareVariant=0, Port=port,
-        OutputType=0x00080, Capabilities=0, InUse=in_use,
-    )
-
-
-def _write_settings_xml(path, root="StreamXpressSettings"):
-    path.write_text(f"<{root} streamtype=\"Modulator\"></{root}>", encoding="utf-8")
+class TestServerConnectDefaults:
+    @patch("streamxpress_mcp.server.load_config")
+    @patch("streamxpress_mcp.server.get_client")
+    def test_connect_defaults_to_localhost_and_config_port(self, mock_get_client, mock_load):
+        from streamxpress_mcp.config import StreamXpressConfig
+        mock_load.return_value = StreamXpressConfig(rc_port=6000)
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
+        from streamxpress_mcp.server import connect
+        result = connect()
+        mock_client.connect.assert_called_once_with("http://localhost", 6000)
+        assert result == {"status": "connected", "host": "http://localhost", "port": 6000}
 
 
 class TestPickPlayoutPort:
@@ -1029,6 +461,19 @@ class TestPickPlayoutPort:
         import pytest
         with pytest.raises(RuntimeError, match="could not auto-select"):
             pick_playout_port(ports, preferred_type_number=315)
+
+
+def _sample_port(serial=315002019, type_number=315, port=1, in_use=0):
+    from streamxpress_mcp.sprc_import import SpRcPortDesc
+    return SpRcPortDesc(
+        Serial=serial, TypeNumber=type_number, Ip=bytes(4), Mac=bytes(6),
+        FirmwareVersion=100, FirmwareVariant=0, Port=port,
+        OutputType=0x00080, Capabilities=0, InUse=in_use,
+    )
+
+
+def _write_settings_xml(path, root="StreamXpressSettings"):
+    path.write_text(f"<{root} streamtype=\"Modulator\"></{root}>", encoding="utf-8")
 
 
 class TestClientPlay:
@@ -1119,81 +564,3 @@ class TestClientPlay:
             client.play(str(xml), str(ts))
         mock_sprc.open_file.assert_not_called()
         mock_sprc.set_playout_state.assert_not_called()
-
-
-class TestServerPlayTool:
-    @patch("streamxpress_mcp.server.launch_streamxpress")
-    @patch("streamxpress_mcp.server.load_config")
-    @patch("streamxpress_mcp.server.get_client")
-    def test_play_tool_forwards_to_client(self, mock_get_client, mock_load, mock_launch):
-        from streamxpress_mcp.config import StreamXpressConfig
-        mock_load.return_value = StreamXpressConfig(preferred_serial=0, preferred_type_number=315)
-        mock_client = MagicMock()
-        mock_client.connected = True
-        mock_client.play.return_value = {
-            "status": "playing", "settings_xml": "a.xml", "stream": "a.ts",
-            "serial": 315002019, "port": 1,
-        }
-        mock_get_client.return_value = mock_client
-        from streamxpress_mcp.server import play
-        result = play("a.xml", "a.ts", loop=True)
-        mock_launch.assert_not_called()
-        mock_client.play.assert_called_once_with(
-            settings_xml="a.xml", stream="a.ts", loop=True,
-            preferred_serial=0, preferred_type_number=315,
-        )
-        assert result["status"] == "playing"
-
-    @patch("streamxpress_mcp.server.launch_streamxpress")
-    @patch("streamxpress_mcp.server.load_config")
-    @patch("streamxpress_mcp.server.get_client")
-    def test_play_auto_connects_without_launch_if_already_listening(
-        self, mock_get_client, mock_load, mock_launch
-    ):
-        from streamxpress_mcp.config import StreamXpressConfig
-        mock_load.return_value = StreamXpressConfig(rc_port=5000)
-        mock_client = MagicMock()
-        mock_client.connected = False
-        mock_client.play.return_value = {
-            "status": "playing", "settings_xml": "a.xml", "stream": "a.ts",
-            "serial": 1, "port": 1,
-        }
-        mock_get_client.return_value = mock_client
-        from streamxpress_mcp.server import play
-        play("a.xml", "a.ts")
-        mock_client.connect.assert_called_once_with("http://localhost", 5000)
-        mock_launch.assert_not_called()
-
-    @patch("streamxpress_mcp.server.launch_streamxpress")
-    @patch("streamxpress_mcp.server.load_config")
-    @patch("streamxpress_mcp.server.get_client")
-    def test_play_launches_when_connect_fails(self, mock_get_client, mock_load, mock_launch):
-        from streamxpress_mcp.config import StreamXpressConfig
-        mock_load.return_value = StreamXpressConfig(rc_port=5000)
-        mock_launch.return_value = {"ok": True, "pid": 1, "port": 5000, "ready": True}
-        mock_client = MagicMock()
-        mock_client.connected = False
-        mock_client.connect.side_effect = [RuntimeError("refused"), None]
-        mock_client.play.return_value = {
-            "status": "playing", "settings_xml": "a.xml", "stream": "a.ts",
-            "serial": 1, "port": 1,
-        }
-        mock_get_client.return_value = mock_client
-        from streamxpress_mcp.server import play
-        play("a.xml", "a.ts")
-        mock_launch.assert_called_once()
-        assert mock_client.connect.call_count == 2
-
-
-class TestServerConnectDefaults:
-    @patch("streamxpress_mcp.server.load_config")
-    @patch("streamxpress_mcp.server.get_client")
-    def test_connect_defaults_to_localhost_and_config_port(self, mock_get_client, mock_load):
-        from streamxpress_mcp.config import StreamXpressConfig
-        mock_load.return_value = StreamXpressConfig(rc_port=6000)
-        mock_client = MagicMock()
-        mock_get_client.return_value = mock_client
-        from streamxpress_mcp.server import connect
-        result = connect()
-        mock_client.connect.assert_called_once_with("http://localhost", 6000)
-        assert result == {"status": "connected", "host": "http://localhost", "port": 6000}

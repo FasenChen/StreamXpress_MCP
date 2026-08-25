@@ -12,10 +12,6 @@ def mock_sprc():
     m.select_port.return_value = None
     m.open_file.return_value = None
     m.set_playout_state.return_value = None
-    m.set_ts_rate.return_value = None
-    m.set_tsiop_pars.return_value = None
-    m.set_rf_pars.return_value = None
-    m.set_asi_pars.return_value = None
     return m
 
 
