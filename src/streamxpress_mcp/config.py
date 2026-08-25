@@ -5,7 +5,7 @@ edit it in place (and typically run `git update-index --skip-worktree
 config.json` so local path edits stay out of git). Lookup order:
   1. file path from env var STREAMXPRESS_MCP_CONFIG
   2. <project root>/config.json
-  3. defaults (no file -> empty paths, rc_port=5000, preferred_type_number=315)
+  3. defaults (no file -> empty paths, rc_port=5000)
 """
 
 import json
@@ -23,8 +23,6 @@ class StreamXpressConfig:
     streamxpress_path: str = ""
     sprc_api_path: str = ""
     rc_port: int = 5000
-    preferred_serial: int = 0
-    preferred_type_number: int = 315
 
 
 def _as_int(value, default: int) -> int:
@@ -62,8 +60,6 @@ def load_config() -> StreamXpressConfig:
         streamxpress_path=streamxpress_path if isinstance(streamxpress_path, str) else "",
         sprc_api_path=sprc_api_path if isinstance(sprc_api_path, str) else "",
         rc_port=_as_int(data.get("rc_port", 5000), 5000),
-        preferred_serial=_as_int(data.get("preferred_serial", 0), 0),
-        preferred_type_number=_as_int(data.get("preferred_type_number", 315), 315),
     )
 
 

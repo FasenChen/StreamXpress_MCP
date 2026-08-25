@@ -110,15 +110,12 @@ def play(settings_xml: str, stream: str, loop: bool = True) -> dict:
         stream: Full path to the transport-stream file (.ts / .trp / ...).
         loop: If True (default), play continuously until stop().
     """
-    cfg = load_config()
     client = get_client()
     _ensure_local_session(client)
     return client.play(
         settings_xml=settings_xml,
         stream=stream,
         loop=loop,
-        preferred_serial=cfg.preferred_serial,
-        preferred_type_number=cfg.preferred_type_number,
     )
 
 

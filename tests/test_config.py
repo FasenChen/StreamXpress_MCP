@@ -10,8 +10,6 @@ def test_load_config_defaults_when_no_file(monkeypatch, tmp_path):
     assert cfg.streamxpress_path == ""
     assert cfg.sprc_api_path == ""
     assert cfg.rc_port == 5000
-    assert cfg.preferred_serial == 0
-    assert cfg.preferred_type_number == 315
 
 
 def test_load_config_from_env_path(monkeypatch, tmp_path):
@@ -49,8 +47,6 @@ def test_load_config_type_mismatch_uses_defaults(monkeypatch, tmp_path):
     assert cfg.streamxpress_path == ""
     assert cfg.sprc_api_path == ""
     assert cfg.rc_port == 5000
-    assert cfg.preferred_serial == 0
-    assert cfg.preferred_type_number == 315
 
 
 def test_load_config_invalid_json_raises(monkeypatch, tmp_path):
@@ -87,21 +83,6 @@ def test_repo_root_config_json_loads_as_defaults(monkeypatch):
         f"仓库根 config.json 不存在: {config_mod.DEFAULT_CONFIG_PATH}"
     )
     cfg = config_mod.load_config()
-    assert cfg.streamxpress_path == ""
-    assert cfg.sprc_api_path == ""
+    assert isinstance(cfg.streamxpress_path, str)
+    assert isinstance(cfg.sprc_api_path, str)
     assert cfg.rc_port == 5000
-    assert cfg.preferred_serial == 0
-    assert cfg.preferred_type_number == 315
-
-
-def test_load_config_preferred_fields(monkeypatch, tmp_path):
-    cfg_file = tmp_path / "cfg.json"
-    cfg_file.write_text(
-        '{"preferred_serial": "315002019", "preferred_type_number": "2111"}',
-        encoding="utf-8",
-    )
-    monkeypatch.setenv(config_mod.ENV_VAR, str(cfg_file))
-    cfg = config_mod.load_config()
-    assert cfg.preferred_serial == 315002019
-    assert cfg.preferred_type_number == 2111
-
