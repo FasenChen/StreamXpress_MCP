@@ -23,3 +23,5 @@ StreamXpress_Official_Data/
 
 # Git worktrees
 .worktrees/
+.omo/
+.codegraph/
