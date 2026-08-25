@@ -25,8 +25,6 @@ MCP 通过项目根目录的 `config.json` 集中配置，本仓库已直接携�
 | `streamxpress_path` | StreamXpress 可执行文件的完整路径（如 `C:\Program Files\DekTec\StreamXpress\StreamXpress64.exe`），`launch` 工具用它启动 |
 | `sprc_api_path` | SpRcApi 目录路径，默认留空（使用包内自带 wsdl）；若填写，运行时优先使用 `<sprc_api_path>\WSDL\SpRc.wsdl` 作为 wsdl 来源 |
 | `rc_port` | 远程控制端口，默认 `5000` |
-| `preferred_serial` | 本机 DekTec 序列号；`0`（默认）表示自动选口 |
-| `preferred_type_number` | 自动选口时优先的设备型号，默认 `315`（DTU-315） |
 
 查找顺序：环境变量 `STREAMXPRESS_MCP_CONFIG` 指定的文件 → 项目根 `config.json` → 默认值。字段留空时使用默认值，不报错。
 
