@@ -96,8 +96,9 @@ python -m streamxpress_mcp
 `play(settings_xml, stream, loop=True)` 要求：
 
 - XML 根元素必须是 `StreamXpressSettings`（StreamXpress 保存的设置快照；Atsc3Xpress XML 不支持）
-- XML 里的 `<Filename>` 应留空，避免 `OpenFile(xml)` 去找一份已不存在的 TS
 - `settings_xml` 与 `stream` 都是 **StreamXpress 所在机器**（本机）上的绝对路径
+
+> **关于 XML 里的 `<Filename>`**：StreamXpress 的 `OpenFile(xml)` 会尝试打开 XML 内 `<Filename>` 指向的文件，该值留空会让 `OpenFile` 直接报 `E_FILE_CANT_FIND (8195)`。因此 `play` 会在调用前自动把码流路径注入一份临时 XML 副本（原文件不动，用完即删）——你无需手动编辑 XML 的 Filename 字段，直接把 StreamXpress 保存的设置 XML 传进来即可。
 
 ## AI 交互示例
 

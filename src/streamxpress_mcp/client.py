@@ -1,6 +1,8 @@
 """StreamXpressClient: singleton wrapper around SPRC_client for MCP server use."""
 
 import logging
+import os
+import tempfile
 import threading
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -66,6 +68,31 @@ def validate_settings_xml(path: str) -> str:
             f"(got {root.tag!r}); Atsc3Xpress / 其他 XML 不受支持"
         )
     return resolved
+
+
+def _inject_stream_into_xml(settings_xml: str, stream: str) -> str:
+    """Return a temp copy of *settings_xml* whose ``<Filename val>`` is set to
+    *stream*, or the original path when the XML has no ``<Filename>`` element.
+
+    StreamXpress' ``OpenFile()`` loads a settings XML and then tries to open
+    the file named in its ``<Filename>`` element. An empty value makes
+    ``OpenFile`` fail with ``E_FILE_CANT_FIND`` (8195) even though the XML
+    file itself exists — that is why play() must inject the stream path before
+    calling ``OpenFile(xml)``.
+    """
+    tree = ET.parse(settings_xml)  # caller already validated
+    root = tree.getroot()
+    injected = False
+    for elem in root.iter():
+        if _xml_local_name(elem.tag) == "Filename":
+            elem.set("val", stream)
+            injected = True
+    if not injected:
+        return settings_xml
+    fd, tmp = tempfile.mkstemp(prefix="sx_play_", suffix=".xml")
+    os.close(fd)
+    tree.write(tmp, encoding="utf-8", xml_declaration=True)
+    return tmp
 
 
 def pick_playout_port(
@@ -239,6 +266,10 @@ class StreamXpressClient:
         """
         settings_xml = validate_settings_xml(settings_xml)
         stream = _require_file(stream, "码流文件")
+        # StreamXpress' OpenFile(xml) fails with E_FILE_CANT_FIND when the
+        # XML's <Filename> is empty, so hand it a temp copy with the stream
+        # path injected (no-op when the XML has no Filename element).
+        xml_for_open = _inject_stream_into_xml(settings_xml, stream)
 
         def _call(s):
             try:
@@ -254,7 +285,7 @@ class StreamXpressClient:
                 preferred_type_number=preferred_type_number,
             )
             s.select_port(chosen.Serial, chosen.Port, 0)
-            s.open_file(settings_xml)
+            s.open_file(xml_for_open)
             if not loop:
                 s.set_loop_flags(0)
             s.open_file(stream)
@@ -267,7 +298,16 @@ class StreamXpressClient:
                 "port": chosen.Port,
             }
 
-        result = self._sprc_call(_call)
+        try:
+            result = self._sprc_call(_call)
+        finally:
+            # OpenFile(xml) parses the file synchronously; the temp copy is
+            # only needed until that call returns.
+            if xml_for_open != settings_xml:
+                try:
+                    os.unlink(xml_for_open)
+                except OSError:
+                    pass
         logger.info("开始播放: %s", stream)
         return result
 

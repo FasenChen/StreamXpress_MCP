@@ -116,8 +116,10 @@ def play(settings_xml: str, stream: str, loop: bool = True) -> dict:
 
     Args:
         settings_xml: Full path to a StreamXpress Save Settings .xml file.
-            Root element must be StreamXpressSettings. Keep Filename empty
-            in the XML so OpenFile(xml) does not look up a stale TS path.
+            Root element must be StreamXpressSettings. The <Filename> element,
+            if present, is auto-injected with the stream path by the server
+            (StreamXpress' OpenFile fails with E_FILE_CANT_FIND on an empty
+            Filename), so any saved snapshot works as-is.
         stream: Full path to the transport-stream file (.ts / .trp / ...).
         loop: If True (default), play continuously until stop().
     """

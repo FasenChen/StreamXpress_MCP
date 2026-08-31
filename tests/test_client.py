@@ -240,8 +240,11 @@ def _sample_port(serial=315002019, type_number=315, port=1, in_use=0):
         OutputType=0x00080, Capabilities=0, InUse=in_use,
     )
 
-def _write_settings_xml(path, root="StreamXpressSettings"):
-    path.write_text(f"<{root} streamtype=\"Modulator\"></{root}>", encoding="utf-8")
+def _write_settings_xml(path, root="StreamXpressSettings", with_filename=False):
+    inner = '<Filename val=""/>' if with_filename else ""
+    path.write_text(
+        f'<{root} streamtype="Modulator">{inner}</{root}>', encoding="utf-8"
+    )
 
 class TestPickPlayoutPort:
     def test_prefers_type_315(self):
@@ -283,27 +286,56 @@ class TestPickPlayoutPort:
 
 
 class TestClientPlay:
-    def _prepare_files(self, tmp_path):
+    def _prepare_files(self, tmp_path, with_filename=False):
         xml = tmp_path / "dvbt2.xml"
         ts = tmp_path / "clip.ts"
-        _write_settings_xml(xml)
+        _write_settings_xml(xml, with_filename=with_filename)
         ts.write_bytes(b"ts")
         return str(xml), str(ts)
 
     def test_open_file_xml_then_stream_then_play(self, client, mock_sprc, tmp_path):
         from streamxpress_mcp.sprc_import import SPRC
-        xml, ts = self._prepare_files(tmp_path)
+
+        xml, ts = self._prepare_files(tmp_path, with_filename=True)
         mock_sprc.scan_ports.return_value = [_sample_port()]
         client.connect("http://localhost", 5000)
+
+        # Capture the injected XML at the moment OpenFile is called (the temp
+        # copy is unlinked right after the SOAP call returns).
+        captured = {}
+
+        def fake_open_file(path, *args, **kwargs):
+            if path.endswith(".xml"):
+                captured["xml"] = path
+                with open(path, encoding="utf-8") as f:
+                    captured["xml_text"] = f.read()
+
+        mock_sprc.open_file.side_effect = fake_open_file
         result = client.play(xml, ts)
         assert result["status"] == "playing"
         assert result["serial"] == 315002019
         assert result["port"] == 1
-        assert mock_sprc.open_file.call_args_list[0].args == (xml,)
+        # first OpenFile gets a temp copy (not the original) with <Filename> injected
+        assert captured["xml"] != xml
+        assert captured["xml"] != ts
+        assert f'Filename val="{ts}"' in captured["xml_text"]
         assert mock_sprc.open_file.call_args_list[1].args == (ts,)
+        # the temp copy is cleaned up after the SOAP call
+        import os
+
+        assert not os.path.exists(captured["xml"])
         mock_sprc.select_port.assert_called_once_with(315002019, 1, 0)
         mock_sprc.set_playout_state.assert_called_with(SPRC.STATE_PLAY)
         mock_sprc.set_loop_flags.assert_not_called()
+
+    def test_xml_without_filename_passed_unchanged(self, client, mock_sprc, tmp_path):
+        xml, ts = self._prepare_files(tmp_path, with_filename=False)
+        mock_sprc.scan_ports.return_value = [_sample_port()]
+        client.connect("http://localhost", 5000)
+        client.play(xml, ts)
+        calls = mock_sprc.open_file.call_args_list
+        assert calls[0].args == (xml,)
+        assert calls[1].args == (ts,)
 
     def test_loop_false_sets_loop_flags_zero(self, client, mock_sprc, tmp_path):
         xml, ts = self._prepare_files(tmp_path)
