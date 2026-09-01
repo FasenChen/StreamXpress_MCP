@@ -32,6 +32,22 @@ class TestStreamXpressPlayout:
         client.stop()
         mock_sprc.set_playout_state.assert_called_once_with(SPRC.STATE_STOP)
 
+    def test_pause_resume_and_clear_errors(self, client, mock_sprc):
+        from streamxpress_mcp.sprc_import import SPRC
+
+        client.connect("http://localhost", 5000)
+        client.pause()
+        client.resume()
+        client.clear_errors()
+
+        assert mock_sprc.set_playout_state.call_args_list[0].args == (
+            SPRC.STATE_PAUSE,
+        )
+        assert mock_sprc.set_playout_state.call_args_list[1].args == (
+            SPRC.STATE_PLAY,
+        )
+        mock_sprc.clear_errors.assert_called_once_with()
+
     def test_get_status(self, client, mock_sprc):
         from streamxpress_mcp.sprc_import import SpRcPlayoutStatus, SpRcPlayoutInfo
 
@@ -126,6 +142,46 @@ class TestStreamXpressPlayout:
         assert status["file_type_name"] == "TS"
         assert status["file_size"] == 1024
         assert status["tp_size"] == 188
+
+    def test_get_status_includes_health_and_remaining_playout_fields(
+        self, client, mock_sprc
+    ):
+        from streamxpress_mcp.sprc_import import SpRcPlayoutStatus, SpRcPlayoutInfo
+
+        mock_sprc.get_playout_status.return_value = SpRcPlayoutStatus(
+            PosRel=0.25, NumWraps=2, FifoLoad=37, NumErrors=3,
+            TotalMemLoad=2048,
+        )
+        mock_sprc.get_playout_info.return_value = SpRcPlayoutInfo(
+            PlayoutState=0, Filename="paused.ts", TsRate=25_000_000,
+            BurstMode=False, ExtClock=False, FileCanBeRead=False,
+            FileOffsetEnd=64, FileOffsetStart=32, FilePlayedBytes=512,
+            FileRateEst=25_100_000, FileSize=608, FileType=0,
+            LoopBeginRel=0.1, LoopEndRel=0.9, LoopFlags=8,
+            PlayoutRate=25_000_000, Remux=False, SymRate=0,
+            TimeLoopBegin=1.5, TimeLoopEnd=9.5, TimeOffset=0,
+            TpSize=188, TxPolarity=0,
+        )
+
+        client.connect("http://localhost", 5000)
+        status = client.get_status()
+
+        assert status["playout_state"] == "PAUSE"
+        assert status["playout_state_raw"] == 0
+        assert status["file_offset_start"] == 32
+        assert status["file_offset_end"] == 64
+        assert status["file_played_bytes"] == 512
+        assert status["time_loop_begin"] == 1.5
+        assert status["time_loop_end"] == 9.5
+        assert status["health"] == {
+            "healthy": False,
+            "warnings": ["FILE_NOT_READABLE", "UNDERFLOW_ERRORS"],
+            "num_errors": 3,
+            "fifo_load": 37,
+            "total_mem_load": 2048,
+            "file_can_be_read": False,
+        }
+
 
 class TestErrorBoundary:
     """Wrapper 错误转换边界：SpRcException 可诊断化、传输故障断连、disconnect 暴露失败。"""
@@ -381,6 +437,21 @@ class TestClientPlay:
         states = [c.args[0] for c in mock_sprc.set_playout_state.call_args_list]
         assert states[0] == SPRC.STATE_STOP
         assert states[-1] == SPRC.STATE_PLAY
+
+    def test_stops_if_paused_before_new_play(self, client, mock_sprc, tmp_path):
+        from streamxpress_mcp.sprc_import import SPRC
+
+        xml, ts = self._prepare_files(tmp_path)
+        mock_sprc.scan_ports.return_value = [_sample_port()]
+        mock_sprc.get_playout_info.return_value = MagicMock(
+            PlayoutState=SPRC.STATE_PAUSE
+        )
+        client.connect("http://localhost", 5000)
+
+        client.play(xml, ts)
+
+        states = [c.args[0] for c in mock_sprc.set_playout_state.call_args_list]
+        assert states == [SPRC.STATE_STOP, SPRC.STATE_PLAY]
 
     def test_missing_file_does_not_start(self, client, mock_sprc, tmp_path):
         xml, ts = self._prepare_files(tmp_path)

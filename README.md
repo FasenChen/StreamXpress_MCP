@@ -1,6 +1,14 @@
 # StreamXpress MCP Server
 
+**当前版本：** `0.2.0`（未发布）
+
 基于 [DekTec StreamXpress](https://www.dektec.com/products/applications/StreamXpress/) 的 MCP（Model Context Protocol）服务，让 AI 能够通过 SpRcApi 远程控制接口来操控 TS（Transport Stream）码流推送。
+
+## 版本与发布
+
+- 版本号唯一来源是 `pyproject.toml` 的 `project.version`，采用 Semantic Versioning。
+- 在 1.0.0 之前，`MINOR` 表示新增或调整兼容行为，`PATCH` 表示缺陷修复；破坏性变更会提升 `MINOR` 并在 README 中明确说明。
+- 每个版本的用户可见变更记录在 `CHANGELOG.md`；发布前把 `Unreleased` 改成日期、更新 README 当前版本、跑完整测试，然后提交 `chore: release vX.Y.Z` 并打 `vX.Y.Z` tag。
 
 ## 前置条件
 
@@ -80,7 +88,7 @@ python -m streamxpress_mcp
 
 > 工具注册名如左（不带前缀）。MCP 客户端（WorkBuddy、Claude Desktop 等）通常会在工具名前加上 MCP server 名前缀，例如 `connect` 在客户端中显示为 `streamxpress_connect`。
 >
-> **破坏性变更：** 工具面从 62 个 SpRcApi 透传/参数 setter 收成 6 个本机预设播放器工具。升级后请在 MCP 客户端重连/重启会话以刷新工具列表。
+> **破坏性变更：** 工具面从 62 个 SpRcApi 透传/参数 setter 收成本机预设播放器工具（当前 9 个）。升级后请在 MCP 客户端重连/重启会话以刷新工具列表。
 >
 > 播放语义对齐 Dolby STAMP 的 DekTec handler：`OpenFile(xml)` → `OpenFile(码流)` → `Play`。XML 是 StreamXpress `File → Save Settings` 的调制/射频快照（一群码流可共用一份）；码流路径由 `play` 显式传入，MCP 不做自动匹配。
 
@@ -89,9 +97,28 @@ python -m streamxpress_mcp
 | `launch` | 按 config.json 启动本机 StreamXpress（`-rc` 模式）并探测端口 |
 | `connect` | 连接 StreamXpress RC 会话。默认 `host=http://localhost`，`port` 默认为 config.json 的 `rc_port` |
 | `play` | 主入口：加载 settings XML → 加载码流 → 开播。未连接时会先连 localhost（必要时 `launch`），并自动选 DTU-315 |
+| `pause` | 暂停播放并保留当前位置 |
+| `resume` | 从暂停位置继续播放，不重新加载 XML 或码流 |
 | `stop` | 停止播放 |
-| `get_status` | 查询播放进度与状态 |
+| `get_status` | 查询播放状态、进度、循环/速率信息、FIFO/下溢计数和健康摘要 |
+| `clear_errors` | 清除播放错误计数 |
 | `disconnect` | 断开 RC 会话 |
+
+### MCP 静态描述
+
+下表是 FastMCP 从 `server.py` 函数 docstring 生成并通过 MCP 暴露给客户端的静态 tool description。为避免翻译造成语义漂移，这里保留实际描述原文；参数名称、类型和默认值另由 input schema 自动生成。
+
+| 工具 | 静态描述 |
+|---|---|
+| `launch` | Launch StreamXpress in remote-control mode using config.json settings. Reads streamxpress_path and rc_port from the project config.json at the repository root, starts StreamXpress with `-rc <port>`, and probes the port until the RC service is ready. Returns pid, port and readiness; use the returned port with connect. |
+| `connect` | Connect to a StreamXpress instance running in remote-control mode. The StreamXpress must be started with: StreamXpress.exe -rc <port>. Defaults are this machine (`http://localhost`) and `rc_port` from config.json. |
+| `play` | Play a stream using a StreamXpress settings XML preset. Loads the XML first (modulation / RF / loop flags), then the stream file, then starts playout. One XML can be reused by a group of streams. Auto-connects to localhost StreamXpress and selects the DTU-315 (or the unique idle port) before opening files. |
+| `pause` | Pause playout and preserve the current file position. Use resume() to continue from this position. Pause is not equivalent to stop(): stop exits hold mode, while pause keeps the player in hold mode. |
+| `resume` | Resume playout from pause without reloading the stream or preset. |
+| `stop` | Stop playout. |
+| `get_status` | Get current playout state, progress, counters, and health summary. |
+| `clear_errors` | Clear the StreamXpress playout error counter. |
+| `disconnect` | Disconnect from the StreamXpress remote-control session. |
 
 `play(settings_xml, stream, loop=True)` 要求：
 
@@ -112,8 +139,13 @@ AI 调用:
      )
      # 内部：launch/连 localhost（若需要）→ 选 315 → OpenFile(xml) → OpenFile(ts) → PLAY
   2. get_status()
-  3. stop()
-  4. disconnect()
+  3. pause()
+  4. get_status()          # playout_state = PAUSE，position_percent 保持
+  5. resume()
+  6. get_status()          # health.num_errors / fifo_load 可用于监测下溢
+  7. clear_errors()        # 需要重新开始错误观测窗口时使用
+  8. stop()
+  9. disconnect()
 ```
 
 一群码流共用同一份 XML 时，只换 `stream` 路径即可。制式/频点/电平都在 XML 里，不在对话里现拼。

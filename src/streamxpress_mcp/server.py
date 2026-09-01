@@ -141,9 +141,37 @@ def stop() -> dict:
 
 
 @mcp.tool()
+def pause() -> dict:
+    """Pause playout and preserve the current file position.
+
+    Use resume() to continue from this position. Pause is not equivalent to
+    stop(): stop exits hold mode, while pause keeps the player in hold mode.
+    """
+    client = get_client()
+    client.pause()
+    return {"status": "paused"}
+
+
+@mcp.tool()
+def resume() -> dict:
+    """Resume playout from pause without reloading the stream or preset."""
+    client = get_client()
+    client.resume()
+    return {"status": "playing"}
+
+
+@mcp.tool()
 def get_status() -> dict:
-    """Get current playout position, wrap count, and file info."""
+    """Get current playout state, progress, counters, and health summary."""
     return get_client().get_status()
+
+
+@mcp.tool()
+def clear_errors() -> dict:
+    """Clear the StreamXpress playout error counter."""
+    client = get_client()
+    client.clear_errors()
+    return {"status": "ok"}
 
 
 @mcp.tool()

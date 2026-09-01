@@ -42,8 +42,27 @@ class TestServerPlayoutTools:
         mock_client = MagicMock()
         mock_get_client.return_value = mock_client
         from streamxpress_mcp.server import stop
+
         result = stop()
         assert result["status"] == "stopped"
+
+    @patch("streamxpress_mcp.server.get_client")
+    def test_pause(self, mock_get_client):
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
+        from streamxpress_mcp.server import pause
+        result = pause()
+        assert result == {"status": "paused"}
+        mock_client.pause.assert_called_once_with()
+
+    @patch("streamxpress_mcp.server.get_client")
+    def test_resume(self, mock_get_client):
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
+        from streamxpress_mcp.server import resume
+        result = resume()
+        assert result == {"status": "playing"}
+        mock_client.resume.assert_called_once_with()
 
     @patch("streamxpress_mcp.server.get_client")
     def test_get_status(self, mock_get_client):
@@ -56,9 +75,19 @@ class TestServerPlayoutTools:
         result = get_status()
         assert result["position_percent"] == 75.5
 
+    @patch("streamxpress_mcp.server.get_client")
+    def test_clear_errors(self, mock_get_client):
+        mock_client = MagicMock()
+        mock_get_client.return_value = mock_client
+        from streamxpress_mcp.server import clear_errors
+        result = clear_errors()
+        assert result == {"status": "ok"}
+        mock_client.clear_errors.assert_called_once_with()
+
 
 EXPECTED_TOOL_NAMES = {
-    "launch", "connect", "play", "stop", "get_status", "disconnect",
+    "launch", "connect", "play", "pause", "resume", "stop", "get_status",
+    "clear_errors", "disconnect",
 }
 
 class TestToolNaming:

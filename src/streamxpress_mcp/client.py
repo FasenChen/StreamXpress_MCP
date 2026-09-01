@@ -250,6 +250,21 @@ class StreamXpressClient:
         logger.info("停止播放")
         self._sprc_call(lambda s: s.set_playout_state(SPRC.STATE_STOP))
 
+    def pause(self) -> None:
+        """Pause playout while preserving the current file position."""
+        logger.info("暂停播放")
+        self._sprc_call(lambda s: s.set_playout_state(SPRC.STATE_PAUSE))
+
+    def resume(self) -> None:
+        """Resume playout from a pause without reloading files or presets."""
+        logger.info("继续播放")
+        self._sprc_call(lambda s: s.set_playout_state(SPRC.STATE_PLAY))
+
+    def clear_errors(self) -> None:
+        """Clear the StreamXpress playout error counter."""
+        logger.info("清除播放错误计数")
+        self._sprc_call(lambda s: s.clear_errors())
+
     def play(
         self,
         settings_xml: str,
@@ -274,7 +289,8 @@ class StreamXpressClient:
         def _call(s):
             try:
                 info = s.get_playout_info()
-                if getattr(info, "PlayoutState", None) == SPRC.STATE_PLAY:
+                active_state = getattr(info, "PlayoutState", None)
+                if active_state in (SPRC.STATE_PAUSE, SPRC.STATE_PLAY):
                     s.set_playout_state(SPRC.STATE_STOP)
             except SpRcException:
                 pass
@@ -316,33 +332,59 @@ class StreamXpressClient:
         def _call(s):
             status = s.get_playout_status()
             info = s.get_playout_info()
+            warnings = []
+            if not info.FileCanBeRead:
+                warnings.append("FILE_NOT_READABLE")
+            if status.NumErrors:
+                warnings.append("UNDERFLOW_ERRORS")
             return {
-            "position_percent": round(status.PosRel * 100, 1),
-            "num_wraps": status.NumWraps,
-            "num_errors": status.NumErrors,
-            "fifo_load": status.FifoLoad,
-            "total_mem_load": status.TotalMemLoad,
-            "playout_state": _PLAYOUT_STATE_NAMES.get(info.PlayoutState, info.PlayoutState),
-            "playout_state_raw": info.PlayoutState,
-            "file_name": info.Filename,
-            "file_size": info.FileSize,
-            "ts_rate_bps": info.TsRate,
-            "playout_rate": info.PlayoutRate,
-            "sym_rate": info.SymRate,
-            "time_offset": info.TimeOffset,
-            "loop_flags": info.LoopFlags,
-            "loop_flags_names": [name for bit, name in _LOOP_FLAG_NAMES.items() if info.LoopFlags & bit],
-            "remux": info.Remux,
-            "tp_size": info.TpSize,
-            "file_can_be_read": info.FileCanBeRead,
-            "file_rate_est": info.FileRateEst,
-            "file_type": info.FileType,
-            "file_type_name": _FILE_TYPE_NAMES.get(info.FileType, f"UNKNOWN({info.FileType})"),
-            "loop_begin_rel": info.LoopBeginRel,
-            "loop_end_rel": info.LoopEndRel,
-            "tx_polarity": info.TxPolarity,
-            "burst_mode": info.BurstMode,
-            "ext_clock": info.ExtClock,
+                "position_percent": round(status.PosRel * 100, 1),
+                "num_wraps": status.NumWraps,
+                "num_errors": status.NumErrors,
+                "fifo_load": status.FifoLoad,
+                "total_mem_load": status.TotalMemLoad,
+                "playout_state": _PLAYOUT_STATE_NAMES.get(
+                    info.PlayoutState, info.PlayoutState
+                ),
+                "playout_state_raw": info.PlayoutState,
+                "file_name": info.Filename,
+                "file_size": info.FileSize,
+                "ts_rate_bps": info.TsRate,
+                "playout_rate": info.PlayoutRate,
+                "sym_rate": info.SymRate,
+                "time_offset": info.TimeOffset,
+                "loop_flags": info.LoopFlags,
+                "loop_flags_names": [
+                    name
+                    for bit, name in _LOOP_FLAG_NAMES.items()
+                    if info.LoopFlags & bit
+                ],
+                "remux": info.Remux,
+                "tp_size": info.TpSize,
+                "file_can_be_read": info.FileCanBeRead,
+                "file_rate_est": info.FileRateEst,
+                "file_type": info.FileType,
+                "file_type_name": _FILE_TYPE_NAMES.get(
+                    info.FileType, f"UNKNOWN({info.FileType})"
+                ),
+                "loop_begin_rel": info.LoopBeginRel,
+                "loop_end_rel": info.LoopEndRel,
+                "file_offset_start": info.FileOffsetStart,
+                "file_offset_end": info.FileOffsetEnd,
+                "file_played_bytes": info.FilePlayedBytes,
+                "time_loop_begin": info.TimeLoopBegin,
+                "time_loop_end": info.TimeLoopEnd,
+                "tx_polarity": info.TxPolarity,
+                "burst_mode": info.BurstMode,
+                "ext_clock": info.ExtClock,
+                "health": {
+                    "healthy": not warnings,
+                    "warnings": warnings,
+                    "num_errors": status.NumErrors,
+                    "fifo_load": status.FifoLoad,
+                    "total_mem_load": status.TotalMemLoad,
+                    "file_can_be_read": info.FileCanBeRead,
+                },
             }
 
         return self._sprc_call(_call)
