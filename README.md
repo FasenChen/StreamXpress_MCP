@@ -104,6 +104,8 @@ python -m streamxpress_mcp
 | `clear_errors` | 清除播放错误计数 |
 | `disconnect` | 断开 RC 会话 |
 
+`get_status`、`pause`、`resume`、`stop`、`clear_errors` 在当前进程未连接时，会自动连接本机 `rc_port` 对应的已有 StreamXpress，适配每次工具调用都新建 stdio 进程的客户端。已有连接会直接复用。这些工具不会自动启动播放器、重新选择输出端口或加载 XML/码流；连接失败会原样报错。跨进程不会继承单独 `connect(host, port)` 设置的远程目标，自动连接始终使用本机配置端口。
+
 ### MCP 静态描述
 
 下表是 FastMCP 从 `server.py` 函数 docstring 生成并通过 MCP 暴露给客户端的静态 tool description。为避免翻译造成语义漂移，这里保留实际描述原文；参数名称、类型和默认值另由 input schema 自动生成。
@@ -113,11 +115,11 @@ python -m streamxpress_mcp
 | `launch` | Launch StreamXpress in remote-control mode using config.json settings. Reads streamxpress_path and rc_port from the project config.json at the repository root, starts StreamXpress with `-rc <port>`, and probes the port until the RC service is ready. Returns pid, port and readiness; use the returned port with connect. |
 | `connect` | Connect to a StreamXpress instance running in remote-control mode. The StreamXpress must be started with: StreamXpress.exe -rc <port>. Defaults are this machine (`http://localhost`) and `rc_port` from config.json. |
 | `play` | Play a stream using a StreamXpress settings XML preset. Loads the XML first (modulation / RF / loop flags), then the stream file, then starts playout. One XML can be reused by a group of streams. Auto-connects to localhost StreamXpress and selects the DTU-315 (or the unique idle port) before opening files. |
-| `pause` | Pause playout and preserve the current file position. Use resume() to continue from this position. Pause is not equivalent to stop(): stop exits hold mode, while pause keeps the player in hold mode. |
-| `resume` | Resume playout from pause without reloading the stream or preset. |
-| `stop` | Stop playout. |
-| `get_status` | Get current playout state, progress, counters, and health summary. |
-| `clear_errors` | Clear the StreamXpress playout error counter. |
+| `pause` | Pause playout and preserve the current file position. Use resume() to continue from this position. Pause is not equivalent to stop(): stop exits hold mode, while pause keeps the player in hold mode. Auto-connects to existing localhost StreamXpress if needed. |
+| `resume` | Resume playout from pause without reloading the stream or preset. Auto-connects to existing localhost StreamXpress if needed. |
+| `stop` | Stop playout. Auto-connects to existing localhost StreamXpress if needed. |
+| `get_status` | Get current playout state, progress, counters, and health summary. Auto-connects to existing localhost StreamXpress if needed. |
+| `clear_errors` | Clear the StreamXpress playout error counter. Auto-connects to existing localhost StreamXpress if needed. |
 | `disconnect` | Disconnect from the StreamXpress remote-control session. |
 
 `play(settings_xml, stream, loop=True)` 要求：

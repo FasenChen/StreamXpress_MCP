@@ -17,6 +17,7 @@ All notable changes to this project are documented in this file. The format is b
 - `play()` now stops an active `PLAY` or `PAUSE` session before loading a new preset and stream.
 - `get_status()` now returns the remaining official `SpRcPlayoutInfo` fields: file offsets, played bytes, and loop begin/end times.
 - Updated the README tool table and interaction examples for the 9-tool surface.
+- Control and status tools now connect to an existing local StreamXpress when invoked in a fresh stdio process, without launching the player or reloading playout settings.
 
 ## [0.1.0] - 2026-08-31
 

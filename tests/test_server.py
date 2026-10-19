@@ -85,6 +85,83 @@ class TestServerPlayoutTools:
         mock_client.clear_errors.assert_called_once_with()
 
 
+class TestIndependentControlCalls:
+    @pytest.mark.parametrize("already_connected", [False, True])
+    @pytest.mark.parametrize("tool_name", [
+        "get_status", "stop", "pause", "resume", "clear_errors",
+    ])
+    def test_fresh_client_connects_without_changing_playout(
+        self, tool_name, already_connected, client, mock_sprc,
+    ):
+        from streamxpress_mcp import server
+        from streamxpress_mcp.config import StreamXpressConfig
+        from streamxpress_mcp.sprc_import import SPRC, SpRcPlayoutInfo, SpRcPlayoutStatus
+
+        if already_connected:
+            client.connect("http://existing-host", 7000)
+            mock_sprc.reset_mock()
+        mock_sprc.get_playout_status.return_value = SpRcPlayoutStatus(
+            PosRel=0.5, NumWraps=2, FifoLoad=42, NumErrors=0, TotalMemLoad=1024,
+        )
+        mock_sprc.get_playout_info.return_value = SpRcPlayoutInfo(
+            PlayoutState=SPRC.STATE_PLAY, Filename="existing.ts", TsRate=25_000_000,
+            BurstMode=False, ExtClock=False, FileCanBeRead=True,
+            FileOffsetEnd=0, FileOffsetStart=0, FilePlayedBytes=512,
+            FileRateEst=25_000_000, FileSize=1024, FileType=0,
+            LoopBeginRel=0.0, LoopEndRel=1.0, LoopFlags=1,
+            PlayoutRate=25_000_000, Remux=False, SymRate=0,
+            TimeLoopBegin=0, TimeLoopEnd=0, TimeOffset=0, TpSize=188, TxPolarity=0,
+        )
+        with (
+            patch.object(server, "get_client", return_value=client),
+            patch.object(server, "load_config", return_value=StreamXpressConfig(rc_port=6000)),
+            patch.object(server, "launch_streamxpress") as launch,
+        ):
+            result = getattr(server, tool_name)()
+
+        if already_connected:
+            mock_sprc.open_session.assert_not_called()
+        else:
+            mock_sprc.open_session.assert_called_once_with(ip_host="http://localhost", ip_port=6000)
+        launch.assert_not_called()
+        mock_sprc.select_port.assert_not_called()
+        mock_sprc.open_file.assert_not_called()
+        if tool_name == "get_status":
+            assert result["playout_state"] == "PLAY"
+            assert result["file_name"] == "existing.ts"
+            assert result["num_wraps"] == 2
+            mock_sprc.set_playout_state.assert_not_called()
+        elif tool_name == "clear_errors":
+            mock_sprc.clear_errors.assert_called_once_with()
+            mock_sprc.set_playout_state.assert_not_called()
+        else:
+            state = {"stop": SPRC.STATE_STOP, "pause": SPRC.STATE_PAUSE, "resume": SPRC.STATE_PLAY}
+            mock_sprc.set_playout_state.assert_called_once_with(state[tool_name])
+
+    @pytest.mark.parametrize("tool_name", [
+        "get_status", "stop", "pause", "resume", "clear_errors",
+    ])
+    def test_connection_failure_does_not_launch_or_send_commands(
+        self, tool_name, client, mock_sprc,
+    ):
+        from streamxpress_mcp import server
+        from streamxpress_mcp.sprc_import import SPRC_RESULT, SpRcException
+
+        mock_sprc.open_session.side_effect = SpRcException(SPRC_RESULT.E_COMMUNICATION)
+        with (
+            patch.object(server, "get_client", return_value=client),
+            patch.object(server, "launch_streamxpress") as launch,
+        ):
+            with pytest.raises(RuntimeError, match="E_COMMUNICATION"):
+                getattr(server, tool_name)()
+
+        launch.assert_not_called()
+        mock_sprc.get_playout_status.assert_not_called()
+        mock_sprc.set_playout_state.assert_not_called()
+        mock_sprc.clear_errors.assert_not_called()
+        assert not client.connected
+
+
 EXPECTED_TOOL_NAMES = {
     "launch", "connect", "play", "pause", "resume", "stop", "get_status",
     "clear_errors", "disconnect",

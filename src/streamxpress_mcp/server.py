@@ -39,6 +39,14 @@ def get_client() -> StreamXpressClient:
     return _client
 
 
+def _get_control_client() -> StreamXpressClient:
+    """Connect to the existing player without launching or changing playout."""
+    client = get_client()
+    if not client.connected:
+        client.connect("http://localhost", load_config().rc_port)
+    return client
+
+
 def _ensure_local_session(client: StreamXpressClient) -> None:
     """Connect to localhost StreamXpress, launching it first if needed."""
     if client.connected:
@@ -134,8 +142,8 @@ def play(settings_xml: str, stream: str, loop: bool = True) -> dict:
 
 @mcp.tool()
 def stop() -> dict:
-    """Stop playout."""
-    client = get_client()
+    """Stop playout. Auto-connects to existing localhost StreamXpress if needed."""
+    client = _get_control_client()
     client.stop()
     return {"status": "stopped"}
 
@@ -146,30 +154,40 @@ def pause() -> dict:
 
     Use resume() to continue from this position. Pause is not equivalent to
     stop(): stop exits hold mode, while pause keeps the player in hold mode.
+    Auto-connects to existing localhost StreamXpress if needed.
     """
-    client = get_client()
+    client = _get_control_client()
     client.pause()
     return {"status": "paused"}
 
 
 @mcp.tool()
 def resume() -> dict:
-    """Resume playout from pause without reloading the stream or preset."""
-    client = get_client()
+    """Resume playout from pause without reloading the stream or preset.
+
+    Auto-connects to existing localhost StreamXpress if needed.
+    """
+    client = _get_control_client()
     client.resume()
     return {"status": "playing"}
 
 
 @mcp.tool()
 def get_status() -> dict:
-    """Get current playout state, progress, counters, and health summary."""
-    return get_client().get_status()
+    """Get current playout state, progress, counters, and health summary.
+
+    Auto-connects to existing localhost StreamXpress if needed.
+    """
+    return _get_control_client().get_status()
 
 
 @mcp.tool()
 def clear_errors() -> dict:
-    """Clear the StreamXpress playout error counter."""
-    client = get_client()
+    """Clear the StreamXpress playout error counter.
+
+    Auto-connects to existing localhost StreamXpress if needed.
+    """
+    client = _get_control_client()
     client.clear_errors()
     return {"status": "ok"}
 
