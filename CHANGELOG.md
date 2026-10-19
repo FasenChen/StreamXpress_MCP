@@ -18,6 +18,7 @@ All notable changes to this project are documented in this file. The format is b
 - `get_status()` now returns the remaining official `SpRcPlayoutInfo` fields: file offsets, played bytes, and loop begin/end times.
 - Updated the README tool table and interaction examples for the 9-tool surface.
 - Control and status tools now connect to an existing local StreamXpress when invoked in a fresh stdio process, without launching the player or reloading playout settings.
+- Windows launches use local `Win32_Process.Create` so StreamXpress survives the MCP client's Job Object cleanup between tool calls.
 
 ## [0.1.0] - 2026-08-31
 

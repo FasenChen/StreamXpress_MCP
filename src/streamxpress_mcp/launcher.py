@@ -1,5 +1,6 @@
 """Launch StreamXpress in remote-control mode from configuration."""
 
+import json
 import logging
 import socket
 import subprocess
@@ -9,6 +10,35 @@ from pathlib import Path
 from .config import StreamXpressConfig
 
 logger = logging.getLogger(__name__)
+
+
+def _start_detached_process(command: list[str]) -> int:
+    # WMI creates the player outside the MCP client's kill-on-close Job Object.
+    script = """
+$ErrorActionPreference = 'Stop'
+[Console]::InputEncoding = [Text.UTF8Encoding]::new()
+[Console]::OutputEncoding = [Text.UTF8Encoding]::new()
+$startup = New-CimInstance -ClassName Win32_ProcessStartup -ClientOnly -Property @{ShowWindow = [uint16]0}
+Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{
+    CommandLine = [Console]::In.ReadToEnd()
+    ProcessStartupInformation = $startup
+} | Select-Object ReturnValue, ProcessId | ConvertTo-Json -Compress
+"""
+    completed = subprocess.run(
+        ["powershell.exe", "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", script],
+        input=subprocess.list2cmdline(command),
+        capture_output=True, text=True, encoding="utf-8", timeout=15,
+        creationflags=subprocess.CREATE_NO_WINDOW,
+    )
+    if completed.returncode:
+        raise RuntimeError(f"PowerShell 创建进程失败: {completed.stderr.strip()}")
+    result = json.loads(completed.stdout)
+    if not isinstance(result, dict) or result.get("ReturnValue") != 0:
+        raise RuntimeError(f"Win32_Process.Create 失败: {result!r}")
+    pid = result.get("ProcessId")
+    if type(pid) is not int or pid <= 0:
+        raise RuntimeError(f"Win32_Process.Create 未返回有效进程 ID: {result!r}")
+    return pid
 
 
 def _port_open(port: int, timeout: float = 0.5) -> bool:
@@ -38,13 +68,8 @@ def launch_streamxpress(cfg: StreamXpressConfig) -> dict:
 
     logger.info("正在启动 StreamXpress: %s -rc %d", exe, cfg.rc_port)
     try:
-        proc = subprocess.Popen(
-            [exe, "-rc", str(cfg.rc_port)],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            creationflags=subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP,
-        )
-    except OSError as exc:
+        pid = _start_detached_process([exe, "-rc", str(cfg.rc_port)])
+    except (OSError, subprocess.SubprocessError, ValueError, RuntimeError) as exc:
         logger.error("启动 StreamXpress 失败: %s", exc)
         return {"ok": False, "error": f"启动 StreamXpress 失败: {exc}"}
     ready = False
@@ -54,7 +79,7 @@ def launch_streamxpress(cfg: StreamXpressConfig) -> dict:
             ready = True
             break
     if ready:
-        logger.info("StreamXpress 已就绪，pid=%d, port=%d", proc.pid, cfg.rc_port)
+        logger.info("StreamXpress 已就绪，pid=%d, port=%d", pid, cfg.rc_port)
     else:
         logger.warning("StreamXpress 启动后端口 %d 未就绪", cfg.rc_port)
-    return {"ok": True, "pid": proc.pid, "port": cfg.rc_port, "ready": ready}
+    return {"ok": True, "pid": pid, "port": cfg.rc_port, "ready": ready}

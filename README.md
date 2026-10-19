@@ -106,6 +106,8 @@ python -m streamxpress_mcp
 
 `get_status`、`pause`、`resume`、`stop`、`clear_errors` 在当前进程未连接时，会自动连接本机 `rc_port` 对应的已有 StreamXpress，适配每次工具调用都新建 stdio 进程的客户端。已有连接会直接复用。这些工具不会自动启动播放器、重新选择输出端口或加载 XML/码流；连接失败会原样报错。跨进程不会继承单独 `connect(host, port)` 设置的远程目标，自动连接始终使用本机配置端口。
 
+Windows 下 `launch`（包括 `play` 的自动启动）通过系统 PowerShell 调用本机 `Win32_Process.Create` 创建独立播放器，避免播放器随 stdio MCP 会话的 Windows Job Object 一并退出。此启动方式依赖本机 PowerShell 和 WMI；创建失败会报告错误，不回退到随会话清理的子进程。参见 [Microsoft Job Objects 文档](https://learn.microsoft.com/en-us/windows/win32/procthread/job-objects#managing-processes-in-jobs)。
+
 ### MCP 静态描述
 
 下表是 FastMCP 从 `server.py` 函数 docstring 生成并通过 MCP 暴露给客户端的静态 tool description。为避免翻译造成语义漂移，这里保留实际描述原文；参数名称、类型和默认值另由 input schema 自动生成。
