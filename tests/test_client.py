@@ -303,6 +303,27 @@ def _write_settings_xml(path, root="StreamXpressSettings", with_filename=False):
     )
 
 class TestPickPlayoutPort:
+    def test_skips_busy_315_even_when_its_serial_is_lower(self):
+        from streamxpress_mcp.client import pick_playout_port
+        busy = _sample_port(serial=1, in_use=2)
+        idle = _sample_port(serial=2, in_use=0)
+        assert pick_playout_port([busy, idle]) is idle
+
+    def test_preserves_current_315_instead_of_switching_to_idle(self):
+        from streamxpress_mcp.client import pick_playout_port
+        current = _sample_port(serial=2, in_use=1)
+        assert pick_playout_port([_sample_port(serial=1), current]) is current
+
+    def test_explicit_busy_serial_does_not_fall_back_to_another_device(self):
+        from streamxpress_mcp.client import pick_playout_port
+        with pytest.raises(RuntimeError, match="1.*已被占用"):
+            pick_playout_port([_sample_port(serial=1, in_use=2), _sample_port(serial=2)], preferred_serial=1)
+
+    def test_all_busy_ports_report_ownership_without_selecting_one(self):
+        from streamxpress_mcp.client import pick_playout_port
+        with pytest.raises(RuntimeError, match="InUse=2"):
+            pick_playout_port([_sample_port(in_use=2)])
+
     def test_prefers_type_315(self):
         from streamxpress_mcp.client import pick_playout_port
         ports = [
@@ -452,6 +473,45 @@ class TestClientPlay:
 
         states = [c.args[0] for c in mock_sprc.set_playout_state.call_args_list]
         assert states == [SPRC.STATE_STOP, SPRC.STATE_PLAY]
+
+    def test_busy_devices_do_not_stop_existing_playout(self, client, mock_sprc, tmp_path):
+        xml, ts = self._prepare_files(tmp_path)
+        mock_sprc.scan_ports.return_value = [_sample_port(in_use=2)]
+        client.connect("http://localhost", 5000)
+        with pytest.raises(RuntimeError, match="占用"):
+            client.play(xml, ts)
+        mock_sprc.select_port.assert_not_called()
+        mock_sprc.set_playout_state.assert_not_called()
+        mock_sprc.open_file.assert_not_called()
+
+    def test_select_failure_does_not_stop_existing_playout(self, client, mock_sprc, tmp_path):
+        from streamxpress_mcp.sprc_import import SpRcException, SPRC_RESULT
+        xml, ts = self._prepare_files(tmp_path)
+        mock_sprc.scan_ports.return_value = [_sample_port()]
+        mock_sprc.select_port.side_effect = SpRcException(SPRC_RESULT.E_PORT_USED)
+        client.connect("http://localhost", 5000)
+        with pytest.raises(RuntimeError, match="E_PORT_USED.*rc_port.*serial"):
+            client.play(xml, ts)
+        mock_sprc.set_playout_state.assert_not_called()
+        mock_sprc.open_file.assert_not_called()
+
+    def test_current_port_is_not_reselected(self, client, mock_sprc, tmp_path):
+        xml, ts = self._prepare_files(tmp_path)
+        mock_sprc.scan_ports.return_value = [_sample_port(in_use=1)]
+        client.connect("http://localhost", 5000)
+        client.play(xml, ts)
+        mock_sprc.select_port.assert_not_called()
+
+    def test_communication_error_before_open_is_not_ignored(self, client, mock_sprc, tmp_path):
+        from streamxpress_mcp.sprc_import import SpRcException, SPRC_RESULT
+        xml, ts = self._prepare_files(tmp_path)
+        mock_sprc.scan_ports.return_value = [_sample_port(in_use=1)]
+        mock_sprc.get_playout_info.side_effect = SpRcException(SPRC_RESULT.E_COMMUNICATION)
+        client.connect("http://localhost", 5000)
+        with pytest.raises(RuntimeError, match="E_COMMUNICATION"):
+            client.play(xml, ts)
+        mock_sprc.open_file.assert_not_called()
+        assert not client.connected
 
     def test_missing_file_does_not_start(self, client, mock_sprc, tmp_path):
         xml, ts = self._prepare_files(tmp_path)

@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Added
 
+- Added per-call `rc_port` targeting to `launch`, `play`, `pause`, `resume`, `stop`, `get_status`, `clear_errors`, and `close`; `play` also accepts a device `serial` for independent outputs.
 - Added the `close` MCP tool to gracefully close the configured local StreamXpress application and confirm process exit without reconnecting or launching it.
 - Added `pause` and `resume` MCP tools. Pausing preserves the current file position, and resuming does not reload the settings XML or stream.
 - Added a `health` summary to `get_status`, including conservative `FILE_NOT_READABLE` and `UNDERFLOW_ERRORS` warnings.
@@ -15,11 +16,21 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Changed
 
+- `close` now matches both the configured executable and RC port, and refuses ambiguous duplicate processes instead of closing every matching window.
+- `play` validates absolute XML/stream paths before connecting or launching; device selection must succeed before existing playout is stopped.
 - `play()` now stops an active `PLAY` or `PAUSE` session before loading a new preset and stream.
 - `get_status()` now returns the remaining official `SpRcPlayoutInfo` fields: file offsets, played bytes, and loop begin/end times.
 - Updated the README tool table and interaction examples for the 10-tool surface.
 - Control and status tools now connect to an existing local StreamXpress when invoked in a fresh stdio process, without launching the player or reloading playout settings.
 - Windows launches use local `Win32_Process.Create` so StreamXpress survives the MCP client's Job Object cleanup between tool calls.
+
+### Fixed
+
+- Launching on an occupied RC port now fails without creating a duplicate; readiness requires the newly launched PID to own the TCP listener, and startup timeout is reported as failure.
+- Automatic DTU-315 selection excludes ports owned by other applications and preserves the current port where possible; explicit busy serials fail without falling back to another device.
+- Concurrent tool calls in one MCP process now serialize connection switching and operations so requests cannot act on each other's instance.
+- `E_NO_PORT` and `E_PORT_USED` errors now explain instance/device targeting, and communication errors during preparation are no longer ignored.
+- Added regression tests for instance routing, busy devices, port ownership, and independent Windows window shutdown.
 
 ## [0.1.0] - 2026-08-31
 

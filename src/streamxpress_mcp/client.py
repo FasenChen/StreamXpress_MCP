@@ -36,8 +36,12 @@ _TRANSPORT_ERROR_CODES = {SPRC_RESULT.E_COMMUNICATION, SPRC_RESULT.E_SESSION_NOT
 
 def _raise_sprc_error(e: SpRcException) -> None:
     """把 SpRcException 转成带错误码名/值的可诊断 RuntimeError。"""
+    hint = {
+        SPRC_RESULT.E_NO_PORT: "当前实例未选择输出端口；请核对 rc_port，并先用 play 为此实例选择设备",
+        SPRC_RESULT.E_PORT_USED: "设备端口被其他实例或应用占用；请为不同 rc_port 指定不同的 serial",
+    }.get(e.ErrorCode, "无详细错误信息")
     raise RuntimeError(
-        f"StreamXpress 错误 {e.ErrorCode.name} ({e.ErrorCode.value}): {str(e) or '无详细错误信息'}"
+        f"StreamXpress 错误 {e.ErrorCode.name} ({e.ErrorCode.value}): {str(e) or hint}"
     ) from e
 
 
@@ -50,6 +54,8 @@ def _xml_local_name(tag: str) -> str:
 
 def _require_file(path: str, kind: str) -> str:
     p = Path(path)
+    if not p.is_absolute():
+        raise ValueError(f"{kind} 必须使用完整绝对路径: {path}")
     if not p.is_file():
         raise FileNotFoundError(f"{kind} 不存在: {path}")
     return str(p)
@@ -102,8 +108,8 @@ def pick_playout_port(
 ) -> SpRcPortDesc:
     """Choose a local output port for play().
 
-    Priority: preferred_serial (if non-zero) -> preferred_type_number
-    (default 315) -> the unique idle port -> the unique port.
+    Exclude ports owned by other applications; prefer the current port when
+    choosing among ports with the same serial or type (default DTU-315).
     """
     ports = list(ports)
     if not ports:
@@ -111,30 +117,31 @@ def pick_playout_port(
 
     def _fmt(ps: list[SpRcPortDesc]) -> str:
         return ", ".join(
-            f"序列号 {p.Serial} 类型 {p.TypeNumber} 端口 {p.Port}" for p in ps
+            f"序列号 {p.Serial} 类型 {p.TypeNumber} 端口 {p.Port} InUse={p.InUse}" for p in ps
         )
 
+    available = [p for p in ports if p.InUse in (SPRC.PORT_UNUSED, SPRC.PORT_CURR)]
     if preferred_serial:
-        matched = [p for p in ports if p.Serial == preferred_serial]
+        matched = [p for p in available if p.Serial == preferred_serial]
         if not matched:
             raise RuntimeError(
-                f"优先序列号 {preferred_serial} 不存在；可用端口: {_fmt(ports)}"
+                f"指定设备 {preferred_serial} 不存在或已被占用；端口状态: {_fmt(ports)}"
             )
-        return sorted(matched, key=lambda p: p.Port)[0]
+        return min(matched, key=lambda p: (p.InUse != SPRC.PORT_CURR, p.Port))
 
     if preferred_type_number:
-        matched = [p for p in ports if p.TypeNumber == preferred_type_number]
+        matched = [p for p in available if p.TypeNumber == preferred_type_number]
         if matched:
-            return sorted(matched, key=lambda p: (p.Serial, p.Port))[0]
+            return min(matched, key=lambda p: (p.InUse != SPRC.PORT_CURR, p.Serial, p.Port))
 
-    idle = [p for p in ports if p.InUse == 0]
+    idle = [p for p in available if p.InUse == SPRC.PORT_UNUSED]
     if len(idle) == 1:
         return idle[0]
-    if len(ports) == 1:
-        return ports[0]
+    if len(available) == 1:
+        return available[0]
     raise RuntimeError(
         f"无法自动选择端口（目标类型 {preferred_type_number}）；"
-        f"可用端口: {_fmt(ports)}"
+        f"端口可能被占用；端口状态: {_fmt(ports)}"
     )
 
 
@@ -150,6 +157,7 @@ class StreamXpressClient:
         self._sprc_factory = sprc_factory or SPRC_client
         self._sprc: SPRC_client | None = None
         self._connected = False
+        self._endpoint: tuple[str, int] | None = None
         # FastMCP runs sync tools on worker threads, so two tool calls can
         # genuinely overlap; the RLock serializes session mutations.
         self._lock = threading.RLock()
@@ -171,6 +179,7 @@ class StreamXpressClient:
         with self._lock:
             self._sprc = sprc
             self._connected = True
+            self._endpoint = (host, port)
         logger.info("已连接到 StreamXpress: %s:%d", host, port)
 
     def disconnect(self) -> None:
@@ -189,6 +198,7 @@ class StreamXpressClient:
                     error = e
                 self._sprc = None
             self._connected = False
+            self._endpoint = None
             if error is not None:
                 raise RuntimeError(f"关闭 StreamXpress 会话失败: {error}") from error
         logger.info("已断开 StreamXpress 连接")
@@ -198,6 +208,11 @@ class StreamXpressClient:
     def connected(self) -> bool:
         with self._lock:
             return self._connected and self._sprc is not None
+
+    @property
+    def endpoint(self) -> tuple[str, int] | None:
+        with self._lock:
+            return self._endpoint
 
     def _ensure_connected(self) -> SPRC_client:
         if not self._connected or self._sprc is None:
@@ -287,20 +302,21 @@ class StreamXpressClient:
         xml_for_open = _inject_stream_into_xml(settings_xml, stream)
 
         def _call(s):
-            try:
-                info = s.get_playout_info()
-                active_state = getattr(info, "PlayoutState", None)
-                if active_state in (SPRC.STATE_PAUSE, SPRC.STATE_PLAY):
-                    s.set_playout_state(SPRC.STATE_STOP)
-            except SpRcException:
-                pass
-
             chosen = pick_playout_port(
                 s.scan_ports(),
                 preferred_serial=preferred_serial,
                 preferred_type_number=preferred_type_number,
             )
-            s.select_port(chosen.Serial, chosen.Port, 0)
+            if chosen.InUse != SPRC.PORT_CURR:
+                s.select_port(chosen.Serial, chosen.Port, 0)
+            try:
+                info = s.get_playout_info()
+                active_state = getattr(info, "PlayoutState", None)
+                if active_state in (SPRC.STATE_PAUSE, SPRC.STATE_PLAY):
+                    s.set_playout_state(SPRC.STATE_STOP)
+            except SpRcException as exc:
+                if exc.ErrorCode != SPRC_RESULT.E_NO_PORT:
+                    raise
             s.open_file(xml_for_open)
             if not loop:
                 s.set_loop_flags(0)

@@ -3,6 +3,18 @@ import pytest
 from streamxpress_mcp import config as config_mod
 
 
+@pytest.mark.parametrize("port", [0, -1, 65536, True, "5001"])
+def test_rc_port_rejects_invalid_values(port):
+    with pytest.raises(ValueError, match="RC 端口"):
+        config_mod.resolve_rc_port(config_mod.StreamXpressConfig(), port)
+
+
+def test_rc_port_override_preserves_config():
+    cfg = config_mod.StreamXpressConfig(rc_port=5000)
+    assert config_mod.resolve_rc_port(cfg, 5001) == 5001
+    assert config_mod.resolve_rc_port(cfg) == 5000
+
+
 def test_load_config_defaults_when_no_file(monkeypatch, tmp_path):
     monkeypatch.delenv(config_mod.ENV_VAR, raising=False)
     monkeypatch.setattr(config_mod, "DEFAULT_CONFIG_PATH", tmp_path / "config.json")

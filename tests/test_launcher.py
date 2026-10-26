@@ -18,9 +18,10 @@ def test_launch_returns_error_when_exe_missing(tmp_path):
     assert "不存在" in result["error"]
 
 
+@patch("streamxpress_mcp.launcher._listener_pids", side_effect=[[], [12345]])
 @patch("streamxpress_mcp.launcher._port_open")
 @patch("streamxpress_mcp.launcher._start_detached_process")
-def test_launch_starts_with_rc_args_and_probes_port(mock_start, mock_port_open, tmp_path):
+def test_launch_starts_with_rc_args_and_probes_port(mock_start, mock_port_open, mock_owners, tmp_path):
     exe = tmp_path / "StreamXpress64.exe"
     exe.write_text("", encoding="utf-8")
     mock_start.return_value = 12345
@@ -32,16 +33,19 @@ def test_launch_starts_with_rc_args_and_probes_port(mock_start, mock_port_open, 
 
     mock_start.assert_called_once_with([str(exe), "-rc", "5000"])
     assert result == {"ok": True, "pid": 12345, "port": 5000, "ready": True}
+    assert mock_owners.call_count == 2
 
 
+@patch("streamxpress_mcp.launcher._listener_pids", return_value=[])
 @patch("streamxpress_mcp.launcher._port_open")
 @patch("streamxpress_mcp.launcher._start_detached_process")
 @pytest.mark.parametrize("error", [OSError("dll missing"), RuntimeError("WMI denied"),
                                         subprocess.TimeoutExpired("powershell.exe", 15)])
-def test_launch_returns_error_when_start_fails(mock_start, mock_port_open, tmp_path, error):
+def test_launch_returns_error_when_start_fails(mock_start, mock_port_open, mock_owners, tmp_path, error):
     exe = tmp_path / "StreamXpress64.exe"
     exe.write_text("", encoding="utf-8")
     mock_start.side_effect = error
+    mock_port_open.return_value = False
 
     cfg = StreamXpressConfig(streamxpress_path=str(exe), rc_port=5000)
     result = launcher.launch_streamxpress(cfg)
@@ -105,7 +109,7 @@ def test_close_passes_executable_as_data_and_returns_verified_result(mock_run, s
     assert launcher.close_streamxpress(StreamXpressConfig(streamxpress_path=exe)) == expected
     args, kwargs = mock_run.call_args
     assert exe not in args[0][-1]
-    assert kwargs["input"] == exe
+    assert json.loads(kwargs["input"]) == {"exe": exe, "rc_port": 5000}
     assert kwargs["timeout"] == 15
     assert kwargs["creationflags"] == subprocess.CREATE_NO_WINDOW
 
@@ -141,3 +145,55 @@ def test_close_reports_process_control_errors(mock_run, error):
     )
     assert result["ok"] is False
     assert str(error) in result["error"]
+
+
+def test_launch_does_not_start_another_process_on_occupied_port(tmp_path):
+    exe = tmp_path / "StreamXpress64.exe"
+    exe.touch()
+    with (
+        patch.object(launcher, "_listener_pids", return_value=[12345]),
+        patch.object(launcher, "_start_detached_process") as start,
+    ):
+        result = launcher.launch_streamxpress(StreamXpressConfig(str(exe), rc_port=5001))
+    assert result["ok"] is False
+    assert "已被占用" in result["error"]
+    start.assert_not_called()
+
+
+@pytest.mark.parametrize("owners", [[54321], [12345, 54321], []])
+def test_launch_does_not_claim_ready_for_another_listener(tmp_path, owners):
+    exe = tmp_path / "StreamXpress64.exe"
+    exe.touch()
+    with (
+        patch.object(launcher, "_port_open", return_value=True),
+        patch.object(launcher, "_start_detached_process", return_value=12345),
+        patch.object(launcher, "_listener_pids", side_effect=[[], owners]),
+        patch.object(launcher.time, "sleep"),
+    ):
+        result = launcher.launch_streamxpress(StreamXpressConfig(str(exe), rc_port=5001))
+    assert result["ok"] is False and result["ready"] is False
+    assert result["pid"] == 12345
+    assert "不是本次启动" in result["error"]
+
+
+def test_launch_timeout_is_a_failure_with_diagnostic_pid(tmp_path):
+    exe = tmp_path / "StreamXpress64.exe"
+    exe.touch()
+    with (
+        patch.object(launcher, "_port_open", return_value=False),
+        patch.object(launcher, "_start_detached_process", return_value=12345),
+        patch.object(launcher, "_listener_pids", return_value=[]) as owners,
+        patch.object(launcher.time, "sleep"),
+    ):
+        result = launcher.launch_streamxpress(StreamXpressConfig(str(exe), rc_port=5001))
+    assert result["ok"] is False and result["ready"] is False
+    assert result["pid"] == 12345
+    owners.assert_called_once_with(5001)
+
+
+@patch("streamxpress_mcp.launcher.subprocess.run")
+@pytest.mark.parametrize("stdout", ['{}', '[0]', '[true]', '["12345"]'])
+def test_listener_lookup_rejects_invalid_owners(mock_run, stdout):
+    mock_run.return_value = subprocess.CompletedProcess([], 0, stdout=stdout, stderr="")
+    with pytest.raises(RuntimeError, match="无效"):
+        launcher._listener_pids(5001)

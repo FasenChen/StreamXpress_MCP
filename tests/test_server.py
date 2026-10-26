@@ -184,6 +184,16 @@ class TestToolNaming:
             f"工具名仍带前缀: {sorted(n for n in names if n.startswith('streamxpress_'))}"
         )
 
+    def test_tool_schemas_support_repeatable_instance_and_device_targeting(self):
+        import asyncio
+        from streamxpress_mcp.server import mcp
+        tools = {tool.name: tool for tool in asyncio.run(mcp.list_tools())}
+        for name in EXPECTED_TOOL_NAMES - {"connect", "disconnect"}:
+            schema = tools[name].parameters
+            assert "rc_port" in schema["properties"]
+            assert "rc_port" not in schema.get("required", [])
+        assert tools["play"].parameters["properties"]["serial"]["default"] == 0
+
 
 class TestLaunchTool:
     @patch("streamxpress_mcp.server.launch_streamxpress")
@@ -286,6 +296,14 @@ class TestGetClientWsdl:
 
 
 class TestServerPlayTool:
+    @pytest.fixture(autouse=True)
+    def valid_input_files(self):
+        with (
+            patch("streamxpress_mcp.server.validate_settings_xml", side_effect=lambda path: path),
+            patch("streamxpress_mcp.server._require_file", side_effect=lambda path, kind: path),
+        ):
+            yield
+
     @patch("streamxpress_mcp.server.launch_streamxpress")
     @patch("streamxpress_mcp.server.load_config")
     @patch("streamxpress_mcp.server.get_client")
@@ -303,7 +321,7 @@ class TestServerPlayTool:
         result = play("a.xml", "a.ts", loop=True)
         mock_launch.assert_not_called()
         mock_client.play.assert_called_once_with(
-            settings_xml="a.xml", stream="a.ts", loop=True,
+            settings_xml="a.xml", stream="a.ts", loop=True, preferred_serial=0,
         )
         assert result["status"] == "playing"
 
@@ -360,4 +378,122 @@ class TestServerConnectDefaults:
         result = connect()
         mock_client.connect.assert_called_once_with("http://localhost", 6000)
         assert result == {"status": "connected", "host": "http://localhost", "port": 6000}
+
+
+@pytest.mark.parametrize("tool_name", ["stop", "pause", "resume", "get_status", "clear_errors"])
+@pytest.mark.parametrize("existing_port", [None, 5000, 5001])
+def test_control_calls_route_to_explicit_port(tool_name, existing_port, client, mock_sprc):
+    from streamxpress_mcp import server
+    if existing_port is not None:
+        client.connect("http://localhost", existing_port)
+        mock_sprc.reset_mock()
+    with (
+        patch.object(server, "get_client", return_value=client),
+        patch.object(server, "launch_streamxpress") as launch,
+    ):
+        getattr(server, tool_name)(rc_port=5001)
+    if existing_port == 5001:
+        mock_sprc.open_session.assert_not_called()
+    else:
+        mock_sprc.open_session.assert_called_once_with(ip_host="http://localhost", ip_port=5001)
+    assert client.endpoint == ("http://localhost", 5001)
+    mock_sprc.select_port.assert_not_called()
+    mock_sprc.open_file.assert_not_called()
+    launch.assert_not_called()
+
+
+def test_play_routes_instance_and_device_without_editing_config(client, mock_sprc, tmp_path):
+    from streamxpress_mcp import server
+    from streamxpress_mcp.config import StreamXpressConfig
+    from tests.test_client import _sample_port, _write_settings_xml
+    xml, stream = tmp_path / "preset.xml", tmp_path / "stream.ts"
+    _write_settings_xml(xml)
+    stream.write_bytes(b"ts")
+    cfg = StreamXpressConfig(rc_port=5000)
+    client.connect("http://localhost", 5000)
+    mock_sprc.reset_mock()
+    mock_sprc.scan_ports.return_value = [_sample_port(serial=1), _sample_port(serial=2)]
+    with (
+        patch.object(server, "get_client", return_value=client),
+        patch.object(server, "load_config", return_value=cfg),
+        patch.object(server, "launch_streamxpress") as launch,
+    ):
+        result = server.play(str(xml), str(stream), rc_port=5001, serial=2)
+    mock_sprc.open_session.assert_called_once_with(ip_host="http://localhost", ip_port=5001)
+    mock_sprc.select_port.assert_called_once_with(2, 1, 0)
+    assert result["serial"] == 2 and cfg.rc_port == 5000
+    launch.assert_not_called()
+
+
+@pytest.mark.parametrize("settings_xml", ["MYS_SIPSI.xml", "C:/missing/preset.xml"])
+def test_invalid_files_do_not_connect_or_launch(settings_xml):
+    from streamxpress_mcp import server
+    with (
+        patch.object(server, "get_client") as get_client,
+        patch.object(server, "launch_streamxpress") as launch,
+    ):
+        with pytest.raises((ValueError, FileNotFoundError)):
+            server.play(settings_xml, "C:/missing/stream.ts", rc_port=5001)
+    get_client.assert_not_called()
+    launch.assert_not_called()
+
+
+def test_failed_launch_does_not_connect_to_unverified_listener(client, mock_sprc):
+    from streamxpress_mcp import server
+    mock_sprc.open_session.side_effect = OSError("refused")
+    with patch.object(server, "launch_streamxpress", return_value={"ok": False, "error": "port occupied"}):
+        with pytest.raises(RuntimeError, match="port occupied"):
+            server._ensure_local_session(client, 5001)
+    assert mock_sprc.open_session.call_count == 1
+
+
+@pytest.mark.parametrize("tool_name,helper", [("launch", "launch_streamxpress"), ("close", "close_streamxpress")])
+def test_lifecycle_tools_pass_port_without_modifying_config(tool_name, helper, client):
+    from streamxpress_mcp import server
+    from streamxpress_mcp.config import StreamXpressConfig
+    cfg = StreamXpressConfig(rc_port=5000)
+    with (
+        patch.object(server, "load_config", return_value=cfg),
+        patch.object(server, "get_client", return_value=client),
+        patch.object(server, helper, return_value={"ok": True}) as control,
+    ):
+        getattr(server, tool_name)(rc_port=5001)
+    assert control.call_args.args[0].rc_port == 5001
+    assert cfg.rc_port == 5000
+
+
+def test_close_does_not_disconnect_another_instance(client, mock_sprc):
+    from streamxpress_mcp import server
+    client.connect("http://localhost", 5000)
+    mock_sprc.reset_mock()
+    with (
+        patch.object(server, "get_client", return_value=client),
+        patch.object(server, "close_streamxpress", return_value={"ok": True}),
+    ):
+        server.close(rc_port=5001)
+    mock_sprc.cleanup.assert_not_called()
+    assert client.connected and client.endpoint == ("http://localhost", 5000)
+
+
+def test_parallel_calls_do_not_mix_instance_targets(client, mock_sprc):
+    import threading
+    import time
+    from concurrent.futures import ThreadPoolExecutor
+    from streamxpress_mcp import server
+
+    local = threading.local()
+    ready = threading.Barrier(2)
+
+    def check_target(state):
+        time.sleep(0.02)
+        assert client.endpoint == ("http://localhost", local.port)
+
+    def stop_at(port):
+        local.port = port
+        ready.wait(timeout=5)
+        return server.stop(rc_port=port)
+
+    mock_sprc.set_playout_state.side_effect = check_target
+    with patch.object(server, "get_client", return_value=client), ThreadPoolExecutor(2) as pool:
+        assert list(pool.map(stop_at, [5000, 5001])) == [{"status": "stopped"}] * 2
 

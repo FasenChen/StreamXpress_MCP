@@ -94,20 +94,22 @@ python -m streamxpress_mcp
 
 | 工具 | 说明 |
 |---|---|
-| `launch` | 按 config.json 启动本机 StreamXpress（`-rc` 模式）并探测端口 |
+| `launch` | 按指定 `rc_port` 启动本机 StreamXpress，检查端口占用与新进程监听归属 |
 | `connect` | 连接 StreamXpress RC 会话。默认 `host=http://localhost`，`port` 默认为 config.json 的 `rc_port` |
-| `play` | 主入口：加载 settings XML → 加载码流 → 开播。未连接时会先连 localhost（必要时 `launch`），并自动选 DTU-315 |
+| `play` | 加载 settings XML → 加载码流 → 开播。用 `rc_port` 指定实例、`serial` 指定设备；默认选择空闲或当前 DTU-315 |
 | `pause` | 暂停播放并保留当前位置 |
 | `resume` | 从暂停位置继续播放，不重新加载 XML 或码流 |
 | `stop` | 停止播放 |
 | `get_status` | 查询播放状态、进度、循环/速率信息、FIFO/下溢计数和健康摘要 |
 | `clear_errors` | 清除播放错误计数 |
 | `disconnect` | 断开 RC 会话 |
-| `close` | 正常关闭配置路径对应的本机 StreamXpress 窗口，等待进程退出并返回可验证的结果 |
+| `close` | 按配置路径和 `rc_port` 正常关闭单个本机实例，确认进程退出；同端口多进程时拒绝关闭 |
 
-`get_status`、`pause`、`resume`、`stop`、`clear_errors` 在当前进程未连接时，会自动连接本机 `rc_port` 对应的已有 StreamXpress，适配每次工具调用都新建 stdio 进程的客户端。已有连接会直接复用。这些工具不会自动启动播放器、重新选择输出端口或加载 XML/码流；连接失败会原样报错。跨进程不会继承单独 `connect(host, port)` 设置的远程目标，自动连接始终使用本机配置端口。
+`launch`、`play`、`get_status`、`pause`、`resume`、`stop`、`clear_errors`、`close` 都接受可选 `rc_port`，默认读取 config.json。显式传入时，播放和控制调用定向到本机对应实例；省略时可复用当前 stdio 进程内的已有连接，新的 stdio 进程使用配置端口。多实例操作必须每次传入相同的目标 `rc_port`，不能依赖前一次 `connect(host, port)` 在下次独立调用中保留连接。状态和控制工具不会自动启动播放器、选择输出设备或加载文件。`E_NO_PORT` 表示目标实例尚未选择输出设备，应核对目标并完成该实例的 `play`，不通过查询或停止工具自动抢占设备。
 
-收尾使用 `stop()` → `close()`。`close` 先断开当前 RC 会话，再按 `config.json` 中 `streamxpress_path` 的完整绝对路径匹配本机进程（包括此前 stdio 会话或手动启动的实例），请求正常关闭窗口，每个进程最多等待 5 秒。它不会自动连接或启动播放器，也不会强制结束进程。成功返回 `ok=true, status=closed, running=false, pids=[退出的进程ID]`；没有匹配进程时返回 `status=not_running, running=false, pids=[]`。无法读取路径、无法关闭窗口或退出超时返回 `ok=false`，不能据此认定应用已退出。`stop` / `disconnect` 本身仍不代表应用退出；关闭后不要再调用会重连的状态工具或会重新启动播放器的 `play`。此工具只关闭本机配置路径对应的应用，不关闭 `connect` 指定的远程应用。
+收尾使用 `stop(rc_port=目标端口)` → `close(rc_port=目标端口)`。`close` 仅匹配 `streamxpress_path` 的完整绝对路径及进程命令行中的 `-rc 目标端口`，只断开此目标的当前 RC 会话，正常关闭窗口并等待最多 5 秒；不会关闭其他端口的播放器。同路径、同 RC 端口出现多个进程时返回失败，避免误关；无 RC 参数的手动窗口也不会被关闭。成功返回 `ok=true, status=closed, running=false, pids=[退出的进程ID]`；没有匹配进程时返回 `status=not_running, running=false, pids=[]`。无法核实进程身份、无法关闭窗口或退出超时返回 `ok=false`，不能据此认定应用已退出。它不会自动连接、启动或强制结束播放器。`stop` / `disconnect` 本身仍不代表应用退出；关闭后不要再对该实例查询或播放。本工具只作用于本机，不关闭远程应用。
+
+`launch` 遇到 RC 端口已占用时直接失败，不重复启动；确认已有实例可用后应直接调用该端口的 `play`。启动成功必须由本次新建的 PID 监听指定端口，不能拿其他进程的监听状态作为证据。启动超时或监听归属不符返回 `ok=false, ready=false`，保留返回的 PID 供诊断，不自动结束进程。
 
 Windows 下 `launch`（包括 `play` 的自动启动）通过系统 PowerShell 调用本机 `Win32_Process.Create` 创建独立播放器，避免播放器随 stdio MCP 会话的 Windows Job Object 一并退出。此启动方式依赖本机 PowerShell 和 WMI；创建失败会报告错误，不回退到随会话清理的子进程。参见 [Microsoft Job Objects 文档](https://learn.microsoft.com/en-us/windows/win32/procthread/job-objects#managing-processes-in-jobs)。
 
@@ -117,16 +119,16 @@ Windows 下 `launch`（包括 `play` 的自动启动）通过系统 PowerShell �
 
 | 工具 | 静态描述 |
 |---|---|
-| `launch` | Launch StreamXpress in remote-control mode using config.json settings. Reads streamxpress_path and rc_port from the project config.json at the repository root, starts StreamXpress with `-rc <port>`, and probes the port until the RC service is ready. Returns pid, port and readiness; use the returned port with connect. |
-| `connect` | Connect to a StreamXpress instance running in remote-control mode. The StreamXpress must be started with: StreamXpress.exe -rc <port>. Defaults are this machine (`http://localhost`) and `rc_port` from config.json. |
-| `play` | Play a stream using a StreamXpress settings XML preset. Loads the XML first (modulation / RF / loop flags), then the stream file, then starts playout. One XML can be reused by a group of streams. Auto-connects to localhost StreamXpress and selects the DTU-315 (or the unique idle port) before opening files. |
-| `pause` | Pause playout and preserve the current file position. Use resume() to continue from this position. Pause is not equivalent to stop(): stop exits hold mode, while pause keeps the player in hold mode. Auto-connects to existing localhost StreamXpress if needed. |
-| `resume` | Resume playout from pause without reloading the stream or preset. Auto-connects to existing localhost StreamXpress if needed. |
-| `stop` | Stop playout. Auto-connects to existing localhost StreamXpress if needed. |
-| `get_status` | Get current playout state, progress, counters, and health summary. Auto-connects to existing localhost StreamXpress if needed. |
-| `clear_errors` | Clear the StreamXpress playout error counter. Auto-connects to existing localhost StreamXpress if needed. |
+| `launch` | Launch StreamXpress in remote-control mode using config.json settings. Reads streamxpress_path from config.json; rc_port overrides its default. Rejects an occupied TCP port before starting. Ready is true only when the new process owns the RC listener. Use distinct ports for multiple instances and repeat rc_port on every play/control/close call. |
+| `connect` | Connect to a StreamXpress instance running in remote-control mode. The StreamXpress must be started with: StreamXpress.exe -rc <port> Defaults are this machine (`http://localhost`) and `rc_port` from config.json. |
+| `play` | Play a stream using a StreamXpress settings XML preset. Loads the XML first (modulation / RF / loop flags), then the stream file, then starts playout. One XML can be reused by a group of streams. Auto-connects to the local rc_port (default from config.json). Use distinct rc_port and serial values for simultaneous instances; repeat rc_port on every later control/status call. Validates files before connecting/launching. |
+| `pause` | Pause playout and preserve the current file position. Use resume() to continue from this position. Pause is not equivalent to stop(): stop exits hold mode, while pause keeps the player in hold mode. Auto-connects to the local rc_port (default config.json); never launches. |
+| `resume` | Resume playout from pause without reloading the stream or preset. Auto-connects to the local rc_port (default config.json); never launches. |
+| `stop` | Stop playout on rc_port (default config.json); never launches or selects a device. |
+| `get_status` | Get current playout state, progress, counters, and health summary. Auto-connects to the local rc_port (default config.json); never launches or selects a device. E_NO_PORT means this instance has no selected output. |
+| `clear_errors` | Clear the StreamXpress playout error counter. Auto-connects to the local rc_port (default config.json); never launches. |
 | `disconnect` | Disconnect from the StreamXpress remote-control session. |
-| `close` | Gracefully close local StreamXpress and verify its processes have exited. Targets the full streamxpress_path in config.json, including across fresh stdio sessions. Disconnects the current RC session without connecting or launching the player. Stop playout before calling this tool. Returns ok, status (closed or not_running), running=false and process IDs only after confirming exit. A blocked window or timeout returns ok=false; it never force-kills the player. Do not call play/get_status after closing. |
+| `close` | Gracefully close local StreamXpress and verify its processes have exited. Targets the configured executable and rc_port (default from config.json), including across fresh stdio sessions. Multiple processes with the same rc_port are ambiguous and will not be closed. Never connects or launches. Stop playout on the same rc_port before calling this tool. Returns ok, status (closed or not_running), running=false and process IDs only after confirming exit. A blocked window or timeout returns ok=false; it never force-kills the player. Do not call play/get_status after closing. |
 
 `play(settings_xml, stream, loop=True)` 要求：
 
@@ -159,6 +161,29 @@ AI 调用:
 一群码流共用同一份 XML 时，只换 `stream` 路径即可。制式/频点/电平都在 XML 里，不在对话里现拼。
 
 XML 用 StreamXpress GUI 调通一次后 `File → Save Settings` 生成。
+
+### 两路同时出流
+
+每个实例使用不同 RC 端口和不同设备序列号。以下 `设备A序列号` / `设备B序列号` 必须替换为实际 DTU-315 的整数序列号；RC 端口与返回的物理设备 `port` 是不同概念。资源完整路径、实例端口和设备分配必须进入各执行任务，不能只保留在规划额外输入或 setup_steps 中。
+
+```python
+launch(rc_port=5000)  # 已监听时不重复 launch
+launch(rc_port=5001)
+play(settings_xml=r"D:\Resource\MALAYSIA\MYS_SIPSI.xml",
+     stream=r"D:\Resource\MALAYSIA\2.0 LCN Test\MYS_SIPSI_2.1b.ts",
+     rc_port=5000, serial=设备A序列号)
+play(settings_xml=r"D:\Resource\MALAYSIA\MYS_SIPSI_2.xml",
+     stream=r"D:\Resource\MALAYSIA\2.0 LCN Test\FGN_SIPSI_2.2.ts",
+     rc_port=5001, serial=设备B序列号)
+get_status(rc_port=5000)
+get_status(rc_port=5001)  # 合理间隔后分别复查推进，两个实例持续 PLAY
+stop(rc_port=5000)
+stop(rc_port=5001)
+close(rc_port=5000)
+close(rc_port=5001)
+```
+
+`serial=0`（默认）会排除其他应用占用的端口，并优先复用当前 315；定向双路用例应明确指定两台设备。指定的 serial 被占用时会报告错误及端口状态，不会换用其他设备。
 
 ## 许可证
 

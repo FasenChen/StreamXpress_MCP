@@ -28,6 +28,13 @@ class StreamXpressConfig:
     rc_port: int = 5000
 
 
+def resolve_rc_port(cfg: StreamXpressConfig, rc_port: int | None = None) -> int:
+    port = cfg.rc_port if rc_port is None else rc_port
+    if type(port) is not int or not 1 <= port <= 65535:
+        raise ValueError(f"RC 端口必须是 1 到 65535 的整数，收到: {port!r}")
+    return port
+
+
 def _as_int(value, default: int) -> int:
     try:
         return int(value)
