@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Added
 
+- Added the `close` MCP tool to gracefully close the configured local StreamXpress application and confirm process exit without reconnecting or launching it.
 - Added `pause` and `resume` MCP tools. Pausing preserves the current file position, and resuming does not reload the settings XML or stream.
 - Added a `health` summary to `get_status`, including conservative `FILE_NOT_READABLE` and `UNDERFLOW_ERRORS` warnings.
 - Added the `clear_errors` MCP tool for resetting the StreamXpress playout error counter.
@@ -16,7 +17,7 @@ All notable changes to this project are documented in this file. The format is b
 
 - `play()` now stops an active `PLAY` or `PAUSE` session before loading a new preset and stream.
 - `get_status()` now returns the remaining official `SpRcPlayoutInfo` fields: file offsets, played bytes, and loop begin/end times.
-- Updated the README tool table and interaction examples for the 9-tool surface.
+- Updated the README tool table and interaction examples for the 10-tool surface.
 - Control and status tools now connect to an existing local StreamXpress when invoked in a fresh stdio process, without launching the player or reloading playout settings.
 - Windows launches use local `Win32_Process.Create` so StreamXpress survives the MCP client's Job Object cleanup between tool calls.
 

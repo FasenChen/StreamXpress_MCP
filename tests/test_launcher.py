@@ -81,3 +81,63 @@ def test_start_detached_process_rejects_failed_or_invalid_result(
     mock_run.return_value = subprocess.CompletedProcess([], exit_code, stdout=stdout, stderr=stderr)
     with pytest.raises((RuntimeError, ValueError), match=error):
         launcher._start_detached_process(["StreamXpress64.exe", "-rc", "5000"])
+
+
+@patch("streamxpress_mcp.launcher.subprocess.run")
+@pytest.mark.parametrize("exe", ["", "StreamXpress64.exe"])
+def test_close_rejects_missing_or_relative_path(mock_run, exe):
+    result = launcher.close_streamxpress(StreamXpressConfig(streamxpress_path=exe))
+    assert result["ok"] is False
+    assert "streamxpress_path" in result["error"]
+    mock_run.assert_not_called()
+
+
+@patch("streamxpress_mcp.launcher.subprocess.run")
+@pytest.mark.parametrize("status,pids", [("closed", [12345]), ("not_running", [])])
+def test_close_passes_executable_as_data_and_returns_verified_result(mock_run, status, pids):
+    import json
+
+    exe = "C:/测试 files/$(example)&/StreamXpress64.exe"
+    expected = {"ok": True, "status": status, "running": False, "pids": pids}
+    mock_run.return_value = subprocess.CompletedProcess(
+        [], 0, stdout=json.dumps(expected), stderr="",
+    )
+    assert launcher.close_streamxpress(StreamXpressConfig(streamxpress_path=exe)) == expected
+    args, kwargs = mock_run.call_args
+    assert exe not in args[0][-1]
+    assert kwargs["input"] == exe
+    assert kwargs["timeout"] == 15
+    assert kwargs["creationflags"] == subprocess.CREATE_NO_WINDOW
+
+
+@patch("streamxpress_mcp.launcher.subprocess.run")
+@pytest.mark.parametrize("exit_code,stdout,stderr", [
+    (1, "", "Cannot close StreamXpress window"),
+    (1, "", "StreamXpress did not exit within 5 seconds"),
+    (1, "", "Access denied"),
+    (0, "invalid json", ""),
+    (0, "[]", ""),
+    (0, '{"ok":true,"status":[],"running":false,"pids":[]}', ""),
+    (0, '{"ok":true,"status":"closed","running":true,"pids":[1]}', ""),
+    (0, '{"ok":true,"status":"disconnected","running":false,"pids":[]}', ""),
+])
+def test_close_does_not_claim_exit_on_failed_or_invalid_result(mock_run, exit_code, stdout, stderr):
+    mock_run.return_value = subprocess.CompletedProcess([], exit_code, stdout=stdout, stderr=stderr)
+    result = launcher.close_streamxpress(
+        StreamXpressConfig(streamxpress_path="C:/DekTec/StreamXpress64.exe"),
+    )
+    assert result["ok"] is False
+    assert "未确认应用退出" in result["error"]
+    assert "running" not in result
+
+
+@patch("streamxpress_mcp.launcher.subprocess.run")
+@pytest.mark.parametrize("error", [OSError("PowerShell unavailable"),
+                                        subprocess.TimeoutExpired("powershell.exe", 15)])
+def test_close_reports_process_control_errors(mock_run, error):
+    mock_run.side_effect = error
+    result = launcher.close_streamxpress(
+        StreamXpressConfig(streamxpress_path="C:/DekTec/StreamXpress64.exe"),
+    )
+    assert result["ok"] is False
+    assert str(error) in result["error"]

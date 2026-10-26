@@ -88,7 +88,7 @@ python -m streamxpress_mcp
 
 > 工具注册名如左（不带前缀）。MCP 客户端（WorkBuddy、Claude Desktop 等）通常会在工具名前加上 MCP server 名前缀，例如 `connect` 在客户端中显示为 `streamxpress_connect`。
 >
-> **破坏性变更：** 工具面从 62 个 SpRcApi 透传/参数 setter 收成本机预设播放器工具（当前 9 个）。升级后请在 MCP 客户端重连/重启会话以刷新工具列表。
+> **破坏性变更：** 工具面从 62 个 SpRcApi 透传/参数 setter 收成本机预设播放器工具（当前 10 个）。升级后请在 MCP 客户端重连/重启会话以刷新工具列表。
 >
 > 播放语义对齐 Dolby STAMP 的 DekTec handler：`OpenFile(xml)` → `OpenFile(码流)` → `Play`。XML 是 StreamXpress `File → Save Settings` 的调制/射频快照（一群码流可共用一份）；码流路径由 `play` 显式传入，MCP 不做自动匹配。
 
@@ -103,8 +103,11 @@ python -m streamxpress_mcp
 | `get_status` | 查询播放状态、进度、循环/速率信息、FIFO/下溢计数和健康摘要 |
 | `clear_errors` | 清除播放错误计数 |
 | `disconnect` | 断开 RC 会话 |
+| `close` | 正常关闭配置路径对应的本机 StreamXpress 窗口，等待进程退出并返回可验证的结果 |
 
 `get_status`、`pause`、`resume`、`stop`、`clear_errors` 在当前进程未连接时，会自动连接本机 `rc_port` 对应的已有 StreamXpress，适配每次工具调用都新建 stdio 进程的客户端。已有连接会直接复用。这些工具不会自动启动播放器、重新选择输出端口或加载 XML/码流；连接失败会原样报错。跨进程不会继承单独 `connect(host, port)` 设置的远程目标，自动连接始终使用本机配置端口。
+
+收尾使用 `stop()` → `close()`。`close` 先断开当前 RC 会话，再按 `config.json` 中 `streamxpress_path` 的完整绝对路径匹配本机进程（包括此前 stdio 会话或手动启动的实例），请求正常关闭窗口，每个进程最多等待 5 秒。它不会自动连接或启动播放器，也不会强制结束进程。成功返回 `ok=true, status=closed, running=false, pids=[退出的进程ID]`；没有匹配进程时返回 `status=not_running, running=false, pids=[]`。无法读取路径、无法关闭窗口或退出超时返回 `ok=false`，不能据此认定应用已退出。`stop` / `disconnect` 本身仍不代表应用退出；关闭后不要再调用会重连的状态工具或会重新启动播放器的 `play`。此工具只关闭本机配置路径对应的应用，不关闭 `connect` 指定的远程应用。
 
 Windows 下 `launch`（包括 `play` 的自动启动）通过系统 PowerShell 调用本机 `Win32_Process.Create` 创建独立播放器，避免播放器随 stdio MCP 会话的 Windows Job Object 一并退出。此启动方式依赖本机 PowerShell 和 WMI；创建失败会报告错误，不回退到随会话清理的子进程。参见 [Microsoft Job Objects 文档](https://learn.microsoft.com/en-us/windows/win32/procthread/job-objects#managing-processes-in-jobs)。
 
@@ -123,6 +126,7 @@ Windows 下 `launch`（包括 `play` 的自动启动）通过系统 PowerShell �
 | `get_status` | Get current playout state, progress, counters, and health summary. Auto-connects to existing localhost StreamXpress if needed. |
 | `clear_errors` | Clear the StreamXpress playout error counter. Auto-connects to existing localhost StreamXpress if needed. |
 | `disconnect` | Disconnect from the StreamXpress remote-control session. |
+| `close` | Gracefully close local StreamXpress and verify its processes have exited. Targets the full streamxpress_path in config.json, including across fresh stdio sessions. Disconnects the current RC session without connecting or launching the player. Stop playout before calling this tool. Returns ok, status (closed or not_running), running=false and process IDs only after confirming exit. A blocked window or timeout returns ok=false; it never force-kills the player. Do not call play/get_status after closing. |
 
 `play(settings_xml, stream, loop=True)` 要求：
 
@@ -149,7 +153,7 @@ AI 调用:
   6. get_status()          # health.num_errors / fifo_load 可用于监测下溢
   7. clear_errors()        # 需要重新开始错误观测窗口时使用
   8. stop()
-  9. disconnect()
+  9. close()               # 断开会话并正常关闭应用，确认 running=false；不再调用 get_status
 ```
 
 一群码流共用同一份 XML 时，只换 `stream` 路径即可。制式/频点/电平都在 XML 里，不在对话里现拼。

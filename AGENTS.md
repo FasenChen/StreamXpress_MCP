@@ -4,7 +4,7 @@
 
 Python 3.10+ MCP server that drives DekTec StreamXpress over SpRcApi (HTTP/SOAP).
 
-- `src/streamxpress_mcp/` — `server.py` (6 unprefixed FastMCP tools: launch/connect/play/stop/get_status/disconnect), `client.py` (`StreamXpressClient`), `config.py`, `launcher.py` (Windows-only).
+- `src/streamxpress_mcp/` — `server.py` (10 unprefixed FastMCP tools: launch/connect/play/pause/resume/stop/get_status/clear_errors/disconnect/close), `client.py` (`StreamXpressClient`), `config.py`, `launcher.py` (Windows-only).
 - `src/streamxpress_mcp/sprc_import/` — vendored SOAP client, types, constants, and `SpRc.wsdl`. Treat as third-party; do not hand-edit.
 - `tests/` — pytest (`test_server.py`, `test_client.py`, `test_config.py`, `test_launcher.py`, `test_sprc_wsdl.py`).
 - `SpRcApi/` — official SDK. Constant values come from `Include/SpRcApi.h` and `DTAPI.h`.
@@ -30,7 +30,7 @@ StreamXpress must already be running as `StreamXpress.exe -rc <port>` (default 5
 
 ## Testing Guidelines
 
-pytest only (`testpaths = ["tests"]`). Inject `sprc_factory` via the `client` / `mock_sprc` fixtures; patch `streamxpress_mcp.server.get_client` for tool tests. No live SOAP except `tests/test_sprc_wsdl.py`. The MCP tool surface is the 6-tool preset player (`launch`, `connect`, `play`, `stop`, `get_status`, `disconnect`). Adding or renaming a tool requires updating `EXPECTED_TOOL_NAMES` in `tests/test_server.py` and the README tool table.
+pytest only (`testpaths = ["tests"]`). Inject `sprc_factory` via the `client` / `mock_sprc` fixtures; patch `streamxpress_mcp.server.get_client` for tool tests. No live SOAP except `tests/test_sprc_wsdl.py`. The MCP tool surface is the 10-tool preset player (`launch`, `connect`, `play`, `pause`, `resume`, `stop`, `get_status`, `clear_errors`, `disconnect`, `close`). Adding or renaming a tool requires updating `EXPECTED_TOOL_NAMES` in `tests/test_server.py` and the README tool table.
 
 ## Commit & Pull Request Guidelines
 

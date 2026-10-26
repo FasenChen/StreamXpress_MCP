@@ -7,7 +7,7 @@ from fastmcp import FastMCP
 
 from .client import StreamXpressClient
 from .config import load_config, resolve_wsdl_path
-from .launcher import launch_streamxpress
+from .launcher import close_streamxpress, launch_streamxpress
 from .sprc_import import SPRC_client
 
 logger = logging.getLogger(__name__)
@@ -111,6 +111,24 @@ def disconnect() -> dict:
         # Session cleanup failed (e.g. network drop) — local state is reset
         # regardless, so report the warning without turning it into a failure.
         return {"status": "disconnected", "warning": str(e)}
+
+
+@mcp.tool()
+def close() -> dict:
+    """Gracefully close local StreamXpress and verify its processes have exited.
+
+    Targets the full streamxpress_path in config.json, including across fresh
+    stdio sessions. Disconnects the current RC session without connecting or
+    launching the player. Stop playout before calling this tool.
+    Returns ok, status (closed or not_running), running=false and process IDs
+    only after confirming exit. A blocked window or timeout returns ok=false;
+    it never force-kills the player. Do not call play/get_status after closing.
+    """
+    session_result = disconnect()
+    result = close_streamxpress(load_config())
+    if "warning" in session_result:
+        result["warning"] = session_result["warning"]
+    return result
 
 
 @mcp.tool()

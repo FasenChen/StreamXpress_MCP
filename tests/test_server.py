@@ -164,7 +164,7 @@ class TestIndependentControlCalls:
 
 EXPECTED_TOOL_NAMES = {
     "launch", "connect", "play", "pause", "resume", "stop", "get_status",
-    "clear_errors", "disconnect",
+    "clear_errors", "disconnect", "close",
 }
 
 class TestToolNaming:
@@ -195,6 +195,58 @@ class TestLaunchTool:
         result = launch()
         assert result == {"ok": True, "pid": 12345, "port": 5000, "ready": True}
         assert mock_launch.call_count == 1
+
+
+class TestCloseTool:
+    @pytest.mark.parametrize("cleanup_error", [None, RuntimeError("session expired")])
+    @pytest.mark.parametrize("close_result", [
+        {"ok": True, "status": "closed", "running": False, "pids": [12345]},
+        {"ok": True, "status": "not_running", "running": False, "pids": []},
+        {"ok": False, "error": "window blocked"},
+    ])
+    def test_close_reports_process_result_without_reconnecting(
+        self, cleanup_error, close_result, client, mock_sprc,
+    ):
+        from streamxpress_mcp import server
+        from streamxpress_mcp.config import StreamXpressConfig
+
+        client.connect("http://localhost", 5000)
+        mock_sprc.reset_mock()
+        mock_sprc.cleanup.side_effect = cleanup_error
+        cfg = StreamXpressConfig(streamxpress_path="C:/DekTec/StreamXpress64.exe")
+        with (
+            patch.object(server, "get_client", return_value=client),
+            patch.object(server, "load_config", return_value=cfg),
+            patch.object(server, "close_streamxpress", return_value=dict(close_result)) as close_app,
+            patch.object(server, "launch_streamxpress") as launch,
+        ):
+            result = server.close()
+
+        close_app.assert_called_once_with(cfg)
+        assert {key: result[key] for key in close_result} == close_result
+        if cleanup_error:
+            assert "session expired" in result["warning"]
+        else:
+            assert "warning" not in result
+        assert not client.connected
+        mock_sprc.cleanup.assert_called_once_with()
+        mock_sprc.open_session.assert_not_called()
+        mock_sprc.get_playout_status.assert_not_called()
+        launch.assert_not_called()
+
+    def test_close_works_in_fresh_session(self, client, mock_sprc):
+        from streamxpress_mcp import server
+
+        expected = {"ok": True, "status": "closed", "running": False, "pids": [12345]}
+        with (
+            patch.object(server, "get_client", return_value=client),
+            patch.object(server, "close_streamxpress", return_value=expected),
+            patch.object(server, "launch_streamxpress") as launch,
+        ):
+            assert server.close() == expected
+        mock_sprc.open_session.assert_not_called()
+        mock_sprc.cleanup.assert_not_called()
+        launch.assert_not_called()
 
 
 class TestGetClientWsdl:
